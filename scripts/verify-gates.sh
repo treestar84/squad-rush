@@ -56,7 +56,11 @@ if [ ! -f "tsconfig.json" ]; then
   gate "G3" "TypeScript 타입 오류 0" "FAIL" "tsconfig.json 없음"
 else
   TS_OUT=$(npx tsc --noEmit 2>&1 || true)
-  TS_ERRORS=$(echo "$TS_OUT" | grep -c "error TS" || echo "0")
+  if echo "$TS_OUT" | grep -q "error TS"; then
+    TS_ERRORS=$(echo "$TS_OUT" | grep -c "error TS")
+  else
+    TS_ERRORS=0
+  fi
   if [ "$TS_ERRORS" = "0" ]; then
     gate "G3" "TypeScript 타입 오류 0" "PASS"
   else
