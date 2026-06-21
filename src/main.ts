@@ -11,13 +11,13 @@ async function main(): Promise<void> {
   const uiRoot = requireElement("ui-root", HTMLElement)
   const engine = await createEngine(canvas)
   const scene = initScene(engine)
-  setupEnvironment(scene, qualitySystem.settings)
 
   const app = new App({ engine, scene, canvas, root: uiRoot, quality: qualitySystem })
   engine.runRenderLoop(() => scene.render())
   window.addEventListener("resize", () => engine.resize())
+  await qualitySystem.autoDetect(engine)
+  setupEnvironment(scene, qualitySystem.settings)
   await app.init()
-  void qualitySystem.autoDetect(engine)
 }
 
 main().catch((error: unknown) => {
