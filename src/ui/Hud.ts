@@ -1,3 +1,5 @@
+import { gsap } from "gsap"
+
 export class Hud {
   private readonly el: HTMLDivElement
   private readonly soldierEl: HTMLElement
@@ -46,6 +48,18 @@ export class Hud {
 
   hide(): void {
     this.el.style.display = "none"
+  }
+
+  showPopup(text: string, color = "var(--accent-primary)"): void {
+    const popup = document.createElement("div")
+    popup.className = "hud-popup"
+    popup.textContent = text
+    popup.style.color = color
+    this.el.appendChild(popup)
+    gsap
+      .timeline({ onComplete: () => popup.remove() })
+      .fromTo(popup, { y: 10, opacity: 0, scale: 0.82 }, { y: 0, opacity: 1, scale: 1, duration: 0.16, ease: "power1.out" })
+      .to(popup, { y: -64, opacity: 0, scale: 1.18, duration: 1.04, ease: "power3.out" })
   }
 
   private mustFind(role: string): HTMLElement {

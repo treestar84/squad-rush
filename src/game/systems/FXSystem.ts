@@ -12,6 +12,7 @@ type FXKind = "hit" | "explosion" | "gate"
 
 type FXInstance = {
   readonly mesh: Mesh
+  baseScale: number
   kind: FXKind
   life: number
   duration: number
@@ -40,14 +41,31 @@ export class FXSystem {
   }
 
   playGateEffect(pos: Vector3): void {
-    this.play("gate", pos, 0.55, 1.2)
+    const colors = [
+      new Color3(1, 0.74, 0.16),
+      new Color3(0.2, 0.95, 0.42),
+      new Color3(1, 1, 0.92),
+    ] as const
+    for (let index = 0; index < 100; index += 1) {
+      const angle = index * 2.399963
+      const radius = 0.35 + (index % 9) * 0.22
+      const y = 0.25 + (index % 7) * 0.12
+      const particlePos = new Vector3(
+        pos.x + Math.cos(angle) * radius,
+        pos.y + y,
+        pos.z + Math.sin(angle) * radius * 0.55,
+      )
+      const scale = 0.2 + (index % 6) * 0.12
+      this.play("gate", particlePos, 1.2, scale, colors[index % colors.length])
+    }
   }
 
   update(dt: number): void {
     for (const fx of this.pool.getActive()) {
       fx.life -= dt
       const age = 1 - Math.max(0, fx.life / fx.duration)
-      fx.mesh.scaling.setAll((0.25 + age * 1.4) * (fx.kind === "explosion" ? 1.4 : 1))
+      const expansion = fx.kind === "gate" ? 2.2 : 1.4
+      fx.mesh.scaling.setAll(fx.baseScale * (0.45 + age * expansion) * (fx.kind === "explosion" ? 1.4 : 1))
       const material = fx.mesh.material
       if (material instanceof StandardMaterial) {
         material.alpha = Math.max(0, 1 - age)
@@ -58,7 +76,7 @@ export class FXSystem {
     }
   }
 
-  private play(kind: FXKind, pos: Vector3, duration: number, scale: number): void {
+  private play(kind: FXKind, pos: Vector3, duration: number, scale: number, color?: Color3): void {
     const fx = this.pool.get()
     if (fx === null) {
       return
@@ -67,12 +85,13 @@ export class FXSystem {
     fx.duration = duration
     fx.life = duration
     fx.mesh.position.copyFrom(pos)
+    fx.baseScale = scale
     fx.mesh.scaling.setAll(scale)
-    this.colorize(fx, kind)
+    this.colorize(fx, kind, color)
     fx.mesh.setEnabled(true)
   }
 
-  private colorize(fx: FXInstance, kind: FXKind): void {
+  private colorize(fx: FXInstance, kind: FXKind, color?: Color3): void {
     const material = fx.mesh.material
     if (!(material instanceof StandardMaterial)) {
       return
@@ -81,8 +100,9 @@ export class FXSystem {
       material.diffuseColor = new Color3(1, 0.7, 0.15)
       material.emissiveColor = new Color3(0.6, 0.18, 0.04)
     } else if (kind === "gate") {
-      material.diffuseColor = new Color3(0.15, 0.9, 0.35)
-      material.emissiveColor = new Color3(0.08, 0.45, 0.18)
+      const gateColor = color ?? new Color3(0.15, 0.9, 0.35)
+      material.diffuseColor = gateColor
+      material.emissiveColor = gateColor.scale(0.55)
     } else {
       material.diffuseColor = new Color3(1, 0.32, 0.08)
       material.emissiveColor = new Color3(0.6, 0.08, 0.01)
@@ -98,6 +118,6 @@ export class FXSystem {
     mat.alpha = 0
     mesh.material = mat
     mesh.setEnabled(false)
-    return { mesh, kind: "hit", life: 0, duration: 0 }
+    return { mesh, baseScale: 1, kind: "hit", life: 0, duration: 0 }
   }
 }

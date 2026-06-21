@@ -1,6 +1,7 @@
 import {
   Color3,
   DefaultRenderingPipeline,
+  ImageProcessingConfiguration,
   MeshBuilder,
   Scene,
   StandardMaterial,
@@ -40,10 +41,15 @@ export function setupEnvironment(scene: Scene, quality: QualitySettings): void {
   if (quality.postProcessEnabled) {
     const pipeline = new DefaultRenderingPipeline("renderPipeline", true, scene, scene.cameras)
     pipeline.bloomEnabled = true
-    pipeline.bloomWeight = 0.28
-    pipeline.bloomThreshold = 0.72
+    pipeline.bloomWeight = 0.5
+    pipeline.bloomThreshold = 0.6
     pipeline.bloomScale = 0.5
     pipeline.sharpenEnabled = true
     pipeline.sharpen.edgeAmount = 0.18
+    pipeline.imageProcessingEnabled = true
+    pipeline.imageProcessing.toneMappingEnabled = true
+    pipeline.imageProcessing.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_ACES
+    pipeline.imageProcessing.exposure = 1.08
+    pipeline.imageProcessing.contrast = 1.16
   }
 }

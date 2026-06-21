@@ -1,3 +1,5 @@
+import { gsap } from "gsap"
+
 export class StartScreen {
   private readonly el: HTMLDivElement
   private readonly startButton: HTMLButtonElement
@@ -30,10 +32,24 @@ export class StartScreen {
 
   show(): void {
     this.el.style.display = "flex"
+    const title = this.el.querySelector(".game-title")
+    const subtitle = this.el.querySelector(".game-subtitle")
+    const button = this.el.querySelector(".tap-to-start")
+    gsap.fromTo(title, { y: -50, opacity: 0 }, { y: 0, opacity: 1, duration: 1, ease: "power3.out" })
+    gsap.fromTo(subtitle, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, delay: 0.4, ease: "power2.out" })
+    gsap.fromTo(button, { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, delay: 0.8, ease: "back.out(1.7)" })
     this.startButton.focus()
   }
 
   hide(): void {
-    this.el.style.display = "none"
+    gsap.to(this.el, {
+      opacity: 0,
+      duration: 0.24,
+      ease: "power1.out",
+      onComplete: () => {
+        this.el.style.display = "none"
+        this.el.style.opacity = "1"
+      },
+    })
   }
 }

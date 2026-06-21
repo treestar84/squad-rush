@@ -273,6 +273,27 @@ button {
   font-size: 12px;
 }
 
+.hud-popup {
+  position: fixed;
+  top: 92px;
+  left: 50%;
+  z-index: 22;
+  min-width: 112px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(203, 213, 225, 0.22);
+  border-radius: 8px;
+  background: rgba(17, 24, 39, 0.76);
+  box-shadow: 0 0 28px var(--shadow-glow), 0 18px 60px rgba(0, 0, 0, 0.45);
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+  padding: var(--space-3) var(--space-5);
+  pointer-events: none;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  will-change: transform, opacity;
+}
+
 .hud-boss-bar {
   margin: 0 var(--space-5);
   border: 1px solid rgba(244, 63, 94, 0.42);
@@ -367,10 +388,12 @@ button {
 @keyframes commandPulse {
   0%,
   100% {
-    transform: scale(1);
+    box-shadow: 0 0 28px var(--shadow-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    filter: brightness(1);
   }
   50% {
-    transform: scale(0.975);
+    box-shadow: 0 0 40px var(--shadow-glow), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    filter: brightness(1.06);
   }
 }
 

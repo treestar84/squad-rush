@@ -46,7 +46,7 @@ export class Game {
   onGameOver?: (victory: boolean) => void
 
   constructor(deps: GameDeps) {
-    this.fx = new FXSystem(deps.scene, Math.round(48 * deps.quality.settings.particleMultiplier) + 12)
+    this.fx = new FXSystem(deps.scene, Math.round(112 * deps.quality.settings.particleMultiplier) + 24)
     this.loop = new GameLoop(deps.scene)
     this.input = new InputController(deps.canvas)
     this.camera = new CameraController(deps.scene)
@@ -67,7 +67,10 @@ export class Game {
     this.hud = new Hud(deps.uiRoot)
     this.result = new ResultScreen(deps.uiRoot)
 
-    this.gates.onPass((_cfg, position) => this.fx.playGateEffect(position))
+    this.gates.onPass((cfg, position) => {
+      this.fx.playGateEffect(position)
+      this.hud.showPopup(cfg.displayText, cfg.cssColor)
+    })
     this.shooting.onMonsterKilled = (monster) => {
       this.monstersKilled += 1
       this.fx.playExplosion(monster.mesh.position, 0.65)
