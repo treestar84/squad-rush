@@ -2,7 +2,7 @@ import "./styles/global.css"
 import { App } from "./app/App"
 import { createEngine } from "./game/RendererFactory"
 import { initScene } from "./game/SceneBootstrap"
-import { setupEnvironment } from "./game/SceneEnvironment"
+import { applyGraphicsPolicy, setupEnvironment } from "./game/SceneEnvironment"
 import { qualitySystem } from "./game/systems/QualitySystem"
 import { requireElement } from "./game/utils/assert"
 
@@ -15,9 +15,9 @@ async function main(): Promise<void> {
   const app = new App({ engine, scene, canvas, root: uiRoot, quality: qualitySystem })
   engine.runRenderLoop(() => scene.render())
   window.addEventListener("resize", () => engine.resize())
-  await qualitySystem.autoDetect(engine)
   setupEnvironment(scene, qualitySystem.settings)
   await app.init()
+  void qualitySystem.autoDetect(engine).then(() => applyGraphicsPolicy(scene, qualitySystem.settings))
 }
 
 main().catch((error: unknown) => {

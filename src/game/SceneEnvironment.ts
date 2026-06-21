@@ -8,6 +8,8 @@ import {
 } from "@babylonjs/core"
 import type { QualitySettings } from "./systems/QualitySystem"
 
+let graphicsPolicyApplied = false
+
 export function setupEnvironment(scene: Scene, quality: QualitySettings): void {
   const sky = MeshBuilder.CreateSphere("sky", { diameter: 500, segments: 12 }, scene)
   const skyMat = new StandardMaterial("skyMat", scene)
@@ -38,18 +40,24 @@ export function setupEnvironment(scene: Scene, quality: QualitySettings): void {
     rightRail.position.set(7.2, 0.12, z)
   }
 
-  if (quality.postProcessEnabled) {
-    const pipeline = new DefaultRenderingPipeline("renderPipeline", true, scene, scene.cameras)
-    pipeline.bloomEnabled = true
-    pipeline.bloomWeight = 0.5
-    pipeline.bloomThreshold = 0.6
-    pipeline.bloomScale = 0.5
-    pipeline.sharpenEnabled = true
-    pipeline.sharpen.edgeAmount = 0.18
-    pipeline.imageProcessingEnabled = true
-    pipeline.imageProcessing.toneMappingEnabled = true
-    pipeline.imageProcessing.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_ACES
-    pipeline.imageProcessing.exposure = 1.08
-    pipeline.imageProcessing.contrast = 1.16
+  applyGraphicsPolicy(scene, quality)
+}
+
+export function applyGraphicsPolicy(scene: Scene, quality: QualitySettings): void {
+  if (!quality.postProcessEnabled || graphicsPolicyApplied) {
+    return
   }
+  graphicsPolicyApplied = true
+  const pipeline = new DefaultRenderingPipeline("renderPipeline", true, scene, scene.cameras)
+  pipeline.bloomEnabled = true
+  pipeline.bloomWeight = 0.5
+  pipeline.bloomThreshold = 0.6
+  pipeline.bloomScale = 0.5
+  pipeline.sharpenEnabled = true
+  pipeline.sharpen.edgeAmount = 0.18
+  pipeline.imageProcessingEnabled = true
+  pipeline.imageProcessing.toneMappingEnabled = true
+  pipeline.imageProcessing.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_ACES
+  pipeline.imageProcessing.exposure = 1.08
+  pipeline.imageProcessing.contrast = 1.16
 }
