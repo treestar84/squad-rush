@@ -83,26 +83,44 @@ export class GateSystem {
     const color = Color3.FromHexString(config.cssColor)
     const mat = new StandardMaterial(`gateMat_${config.id}_${x}`, this.scene)
     mat.diffuseColor = color
-    mat.emissiveColor = color.scale(0.28)
+    mat.emissiveColor = color.scale(0.46)
+    mat.alpha = 0.42
 
-    const pillar = MeshBuilder.CreateBox(`gate_${config.id}_${x}`, { width: 2.9, height: 4.8, depth: 0.34 }, this.scene)
-    pillar.material = mat
-    pillar.position.set(x, 2.4, z)
+    const frameMat = new StandardMaterial(`gateFrameMat_${config.id}_${x}`, this.scene)
+    frameMat.diffuseColor = new Color3(0.02, 0.03, 0.04)
+    frameMat.emissiveColor = color.scale(0.12)
+
+    const panel = MeshBuilder.CreatePlane(`gate_panel_${config.id}_${x}`, { width: 3.6, height: 4.4 }, this.scene)
+    panel.material = mat
+    panel.position.set(x, 2.25, z - 0.18)
+
+    const leftFrame = MeshBuilder.CreateBox(`gate_frame_l_${config.id}_${x}`, { width: 0.18, height: 4.8, depth: 0.28 }, this.scene)
+    leftFrame.material = frameMat
+    leftFrame.position.set(x - 1.9, 2.4, z - 0.22)
+
+    const rightFrame = MeshBuilder.CreateBox(`gate_frame_r_${config.id}_${x}`, { width: 0.18, height: 4.8, depth: 0.28 }, this.scene)
+    rightFrame.material = frameMat
+    rightFrame.position.set(x + 1.9, 2.4, z - 0.22)
+
+    const topFrame = MeshBuilder.CreateBox(`gate_frame_t_${config.id}_${x}`, { width: 4, height: 0.22, depth: 0.28 }, this.scene)
+    topFrame.material = frameMat
+    topFrame.position.set(x, 4.78, z - 0.22)
 
     const tex = new DynamicTexture(`gateLabel_${config.id}_${x}`, { width: 512, height: 256 }, this.scene)
     const ctx = tex.getContext()
     ctx.clearRect(0, 0, 512, 256)
-    tex.drawText(config.displayText, null, 150, "900 72px Arial", config.cssColor, "transparent", true, true)
+    tex.drawText(config.displayText, null, 150, "900 76px Arial", "#FFFFFF", "transparent", true, true)
     tex.update()
 
-    const label = MeshBuilder.CreatePlane(`gate_label_${config.id}_${x}`, { width: 4, height: 1.7 }, this.scene)
+    const label = MeshBuilder.CreatePlane(`gate_label_${config.id}_${x}`, { width: 3.8, height: 1.25 }, this.scene)
     const labelMat = new StandardMaterial(`gateLabelMat_${config.id}_${x}`, this.scene)
     labelMat.diffuseTexture = tex
     labelMat.emissiveTexture = tex
+    labelMat.useAlphaFromDiffuseTexture = true
     labelMat.backFaceCulling = false
     label.material = labelMat
-    label.position.set(x, 4.2, z - 0.15)
-    return [pillar, label]
+    label.position.set(x, 3.05, z - 0.3)
+    return [panel, leftFrame, rightFrame, topFrame, label]
   }
 
   private applyGate(cfg: GateConfig): void {

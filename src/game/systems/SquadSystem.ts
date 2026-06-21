@@ -26,12 +26,27 @@ export class SquadSystem {
   private readonly pool: ObjectPool<Soldier>
   private readonly alivePositions: Vector3[] = []
   private readonly trackHalf = LEVEL_1.trackWidth / 2
+  private readonly helmetMat: StandardMaterial
+  private readonly visorMat: StandardMaterial
+  private readonly rifleMat: StandardMaterial
+  private readonly muzzleMat: StandardMaterial
 
   constructor(
     private readonly scene: Scene,
     private readonly templateMesh: Mesh | null,
     maxCount: number,
   ) {
+    this.helmetMat = new StandardMaterial("squadHelmetMat", scene)
+    this.helmetMat.diffuseColor = new Color3(0.05, 0.09, 0.12)
+    this.helmetMat.specularColor = new Color3(0.55, 0.62, 0.68)
+    this.visorMat = new StandardMaterial("squadVisorMat", scene)
+    this.visorMat.diffuseColor = new Color3(0.12, 0.7, 1)
+    this.visorMat.emissiveColor = new Color3(0.02, 0.18, 0.35)
+    this.rifleMat = new StandardMaterial("squadRifleMat", scene)
+    this.rifleMat.diffuseColor = new Color3(0.08, 0.08, 0.07)
+    this.muzzleMat = new StandardMaterial("squadMuzzleMat", scene)
+    this.muzzleMat.diffuseColor = new Color3(1, 0.72, 0.16)
+    this.muzzleMat.emissiveColor = new Color3(0.8, 0.32, 0.02)
     this.pool = new ObjectPool<Soldier>(
       (index) => this.createSoldier(index),
       (soldier) => {
@@ -48,8 +63,31 @@ export class SquadSystem {
 
   private createSoldier(index: number): Soldier {
     const mesh = this.templateMesh?.clone(`soldier_${index}`, null) ?? this.createFallbackSoldier(index)
+    this.decorateSoldier(mesh, index)
     mesh.setEnabled(false)
     return { mesh, offsetX: 0, offsetZ: 0, hp: SOLDIER_BASE.hp, alive: false }
+  }
+
+  private decorateSoldier(mesh: Mesh, index: number): void {
+    const helmet = MeshBuilder.CreateSphere(`soldier_helmet_${index}`, { diameter: 0.48, segments: 12 }, this.scene)
+    helmet.material = this.helmetMat
+    helmet.parent = mesh
+    helmet.position.set(0, 1.04, 0.02)
+
+    const visor = MeshBuilder.CreateBox(`soldier_visor_${index}`, { width: 0.34, height: 0.1, depth: 0.05 }, this.scene)
+    visor.material = this.visorMat
+    visor.parent = mesh
+    visor.position.set(0, 1.06, 0.25)
+
+    const rifle = MeshBuilder.CreateBox(`soldier_rifle_${index}`, { width: 0.1, height: 0.12, depth: 0.78 }, this.scene)
+    rifle.material = this.rifleMat
+    rifle.parent = mesh
+    rifle.position.set(0.34, 0.58, 0.34)
+
+    const muzzle = MeshBuilder.CreateSphere(`soldier_muzzle_${index}`, { diameter: 0.12, segments: 8 }, this.scene)
+    muzzle.material = this.muzzleMat
+    muzzle.parent = mesh
+    muzzle.position.set(0.34, 0.58, 0.78)
   }
 
   private createFallbackSoldier(index: number): Mesh {

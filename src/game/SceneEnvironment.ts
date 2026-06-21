@@ -24,6 +24,15 @@ export function setupEnvironment(scene: Scene, quality: QualitySettings): void {
 
   const railMat = new StandardMaterial("railMat", scene)
   railMat.diffuseColor = new Color3(0.85, 0.72, 0.42)
+  railMat.emissiveColor = new Color3(0.18, 0.12, 0.02)
+
+  const lineMat = new StandardMaterial("laneLineMat", scene)
+  lineMat.diffuseColor = new Color3(0.92, 0.96, 1)
+  lineMat.emissiveColor = new Color3(0.12, 0.2, 0.28)
+
+  const beaconMat = new StandardMaterial("beaconMat", scene)
+  beaconMat.diffuseColor = new Color3(1, 0.66, 0.12)
+  beaconMat.emissiveColor = new Color3(0.9, 0.32, 0.04)
 
   for (let index = 0; index < 24; index += 1) {
     const z = index * 10
@@ -38,6 +47,16 @@ export function setupEnvironment(scene: Scene, quality: QualitySettings): void {
     const rightRail = MeshBuilder.CreateBox(`rail_r_${index}`, { width: 0.22, height: 0.28, depth: 9 }, scene)
     rightRail.material = railMat
     rightRail.position.set(7.2, 0.12, z)
+
+    const laneLine = MeshBuilder.CreateBox(`lane_line_${index}`, { width: 0.14, height: 0.03, depth: 3.2 }, scene)
+    laneLine.material = lineMat
+    laneLine.position.set(0, 0.03, z - 1.8)
+
+    for (const x of [-6.7, 6.7]) {
+      const beacon = MeshBuilder.CreateBox(`beacon_${index}_${x}`, { width: 0.28, height: 0.18, depth: 0.72 }, scene)
+      beacon.material = beaconMat
+      beacon.position.set(x, 0.34, z + 3.2)
+    }
   }
 
   applyGraphicsPolicy(scene, quality)

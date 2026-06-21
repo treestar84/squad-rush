@@ -22,7 +22,7 @@ export class CollisionSystem {
   checkMonsterSquadCollision(): readonly MonsterInstance[] {
     const hits: MonsterInstance[] = []
     for (const monster of this.waves.getAlive()) {
-      const radius = 1.2 + (monster.config?.scale ?? 1)
+      const radius = 0.75 + (monster.config?.scale ?? 1) * 0.55
       if (distance2d(monster.mesh.position.x, monster.mesh.position.z, this.squad.squadX, this.squad.squadZ) < radius) {
         hits.push(monster)
       }

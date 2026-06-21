@@ -18,7 +18,8 @@ export function initScene(engine: Engine): Scene {
   scene.fogColor = new Color3(0.53, 0.81, 0.98)
 
   const camera = new ArcRotateCamera("bootCamera", -Math.PI / 2, Math.PI / 3.5, 30, new Vector3(0, 0, 10), scene)
-  camera.attachControl(false)
+  camera.fov = 0.78
+  scene.activeCamera = camera
 
   const hemi = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene)
   hemi.intensity = 0.72

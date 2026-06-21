@@ -65,6 +65,7 @@ export class BossSystem {
     this.hp = this.maxHp
     this.attackTimer = 1.4
     const mesh = this.templateMesh?.clone("boss_runtime", null) ?? this.createFallbackBoss()
+    this.decorateBoss(mesh)
     mesh.position.copyFrom(this.spawnPos)
     mesh.scaling.setAll(1)
     mesh.setEnabled(true)
@@ -78,6 +79,32 @@ export class BossSystem {
     mat.emissiveColor = new Color3(0.08, 0.01, 0.13)
     mesh.material = mat
     return mesh
+  }
+
+  private decorateBoss(mesh: Mesh): void {
+    const armorMat = new StandardMaterial("bossArmorMat", this.scene)
+    armorMat.diffuseColor = new Color3(0.12, 0.04, 0.2)
+    armorMat.emissiveColor = new Color3(0.08, 0.01, 0.14)
+    const coreMat = new StandardMaterial("bossCoreMat", this.scene)
+    coreMat.diffuseColor = new Color3(1, 0.16, 0.38)
+    coreMat.emissiveColor = new Color3(0.85, 0.02, 0.16)
+
+    const crown = MeshBuilder.CreateCylinder("boss_crown", { height: 0.6, diameterTop: 1.2, diameterBottom: 2.4, tessellation: 6 }, this.scene)
+    crown.material = armorMat
+    crown.parent = mesh
+    crown.position.set(0, 3, 0)
+
+    const core = MeshBuilder.CreateSphere("boss_core", { diameter: 0.82, segments: 16 }, this.scene)
+    core.material = coreMat
+    core.parent = mesh
+    core.position.set(0, 1.45, 1.95)
+
+    for (const x of [-1.65, 1.65]) {
+      const shoulder = MeshBuilder.CreateBox(`boss_shoulder_${x}`, { width: 0.72, height: 0.72, depth: 0.72 }, this.scene)
+      shoulder.material = armorMat
+      shoulder.parent = mesh
+      shoulder.position.set(x, 2.25, 0)
+    }
   }
 
   private doAttack(): void {

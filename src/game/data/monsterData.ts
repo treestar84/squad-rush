@@ -33,8 +33,8 @@ export type WaveConfig = {
 export const MONSTER_CONFIGS: Record<string, MonsterConfig> = {
   basic: {
     id: "basic",
-    hp: 30,
-    speed: 3.5,
+    hp: 24,
+    speed: 2.5,
     damage: 1,
     scale: 1,
     behavior: MONSTER_BEHAVIORS.basic,
@@ -42,8 +42,8 @@ export const MONSTER_CONFIGS: Record<string, MonsterConfig> = {
   },
   fast: {
     id: "fast",
-    hp: 15,
-    speed: 6,
+    hp: 12,
+    speed: 4.2,
     damage: 1,
     scale: 0.78,
     behavior: MONSTER_BEHAVIORS.fast,
@@ -51,9 +51,9 @@ export const MONSTER_CONFIGS: Record<string, MonsterConfig> = {
   },
   tank: {
     id: "tank",
-    hp: 120,
-    speed: 1.5,
-    damage: 3,
+    hp: 90,
+    speed: 1.1,
+    damage: 2,
     scale: 1.6,
     behavior: MONSTER_BEHAVIORS.tank,
     cssColor: "#7C3AED",
@@ -66,16 +66,16 @@ export const WAVE_CONFIGS: Record<string, WaveConfig> = {
     startZ: 60,
     monsters: [
       { configId: "basic", count: 60, spawnPattern: "BLOCK" },
-      { configId: "fast", count: 20, spawnPattern: "LINE" },
+      { configId: "fast", count: 14, spawnPattern: "LINE" },
     ],
   },
   wave_2: {
     id: "wave_2",
     startZ: 130,
     monsters: [
-      { configId: "basic", count: 40, spawnPattern: "BLOCK" },
-      { configId: "tank", count: 10, spawnPattern: "LINE" },
-      { configId: "fast", count: 20, spawnPattern: "V_SHAPE" },
+      { configId: "basic", count: 32, spawnPattern: "BLOCK" },
+      { configId: "tank", count: 6, spawnPattern: "LINE" },
+      { configId: "fast", count: 14, spawnPattern: "V_SHAPE" },
     ],
   },
 } as const

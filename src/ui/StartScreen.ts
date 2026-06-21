@@ -37,7 +37,7 @@ export class StartScreen {
     const button = this.el.querySelector(".tap-to-start")
     gsap.fromTo(title, { y: -50, opacity: 0 }, { y: 0, opacity: 1, duration: 1, ease: "power3.out" })
     gsap.fromTo(subtitle, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, delay: 0.4, ease: "power2.out" })
-    gsap.fromTo(button, { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, delay: 0.8, ease: "back.out(1.7)" })
+    gsap.fromTo(button, { scale: 0.9, opacity: 1 }, { scale: 1, opacity: 1, duration: 0.38, delay: 0.18, ease: "back.out(1.7)" })
     this.startButton.focus()
   }
 
