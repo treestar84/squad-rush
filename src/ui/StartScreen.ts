@@ -1,9 +1,16 @@
 import { gsap } from "gsap"
+import {
+  DEFAULT_DIFFICULTY,
+  DIFFICULTY_PROFILES,
+  type DifficultyProfile,
+} from "../game/data/difficultyData"
 import { prefersReducedMotion } from "./motionPreference"
 
 export class StartScreen {
   private readonly el: HTMLDivElement
   private readonly startButton: HTMLButtonElement
+  private readonly difficultyButtons: readonly HTMLButtonElement[]
+  private selectedDifficulty: DifficultyProfile = DEFAULT_DIFFICULTY
   private pointerDownX = 0
   private pointerDownY = 0
   private pointerDragged = false
@@ -29,7 +36,8 @@ export class StartScreen {
     const dy = event.clientY - this.pointerDownY
     this.pointerDragged = this.pointerDragged || Math.hypot(dx, dy) > 10
   }
-  onStart?: () => void
+  onStart?: (difficulty: DifficultyProfile) => void
+  onDifficultyChange?: (difficulty: DifficultyProfile) => void
 
   constructor(root: HTMLElement) {
     this.el = document.createElement("div")
@@ -44,6 +52,18 @@ export class StartScreen {
           <div><span>RUN</span><strong>54s</strong><small>SLICE</small></div>
           <div><span>THREAT</span><strong>460+</strong><small>HOSTILES</small></div>
         </div>
+        <div class="difficulty-panel" role="radiogroup" aria-label="Difficulty">
+          <button class="difficulty-option" type="button" data-difficulty="easy" role="radio" aria-checked="true">
+            <span>EASY</span><strong>기본 런</strong><small>완성된 현재 밸런스</small>
+          </button>
+          <button class="difficulty-option" type="button" data-difficulty="medium" role="radio" aria-checked="false">
+            <span>NORMAL</span><strong>강화 런</strong><small>적 밀도와 체력 상승</small>
+          </button>
+          <button class="difficulty-option" type="button" data-difficulty="hard" role="radio" aria-checked="false">
+            <span>HARD</span><strong>위험 런</strong><small>고밀도 고피해 압박</small>
+          </button>
+        </div>
+        <p class="difficulty-brief" data-role="difficulty-brief">기존 밸런스 그대로 시작합니다.</p>
         <button class="tap-to-start" type="button">TAP TO START</button>
         <div class="controls-hint">
           <span>Mouse drag</span>
@@ -58,6 +78,13 @@ export class StartScreen {
       throw new Error("Start screen button missing")
     }
     this.startButton = button
+    this.difficultyButtons = Array.from(this.el.querySelectorAll(".difficulty-option")).filter((option) => option instanceof HTMLButtonElement)
+    for (const option of this.difficultyButtons) {
+      option.addEventListener("click", () => {
+        const difficulty = this.readDifficultyOption(option)
+        this.setDifficulty(difficulty)
+      })
+    }
     this.startButton.addEventListener("pointerdown", (event) => {
       this.pointerDownX = event.clientX
       this.pointerDownY = event.clientY
@@ -110,7 +137,33 @@ export class StartScreen {
       return
     }
     this.startTriggered = true
-    this.onStart?.()
+    this.onStart?.(this.selectedDifficulty)
+  }
+
+  setDifficulty(difficulty: DifficultyProfile): void {
+    this.selectedDifficulty = difficulty
+    for (const option of this.difficultyButtons) {
+      const optionDifficulty = this.readDifficultyOption(option)
+      const selected = optionDifficulty.id === difficulty.id
+      option.classList.toggle("difficulty-option--selected", selected)
+      option.setAttribute("aria-checked", String(selected))
+    }
+    const brief = this.el.querySelector("[data-role='difficulty-brief']")
+    if (brief instanceof HTMLElement) {
+      brief.textContent = difficulty.briefing
+    }
+    this.onDifficultyChange?.(difficulty)
+  }
+
+  private readDifficultyOption(option: HTMLButtonElement): DifficultyProfile {
+    const id = option.dataset["difficulty"]
+    if (id === "medium") {
+      return DIFFICULTY_PROFILES.medium
+    }
+    if (id === "hard") {
+      return DIFFICULTY_PROFILES.hard
+    }
+    return DIFFICULTY_PROFILES.easy
   }
 
   show(): void {
@@ -119,8 +172,9 @@ export class StartScreen {
     const title = this.el.querySelector(".game-title")
     const subtitle = this.el.querySelector(".game-subtitle")
     const missionStrip = this.el.querySelector(".mission-strip")
+    const difficultyPanel = this.el.querySelector(".difficulty-panel")
     const button = this.el.querySelector(".tap-to-start")
-    const animatedElements = [title, subtitle, missionStrip, button]
+    const animatedElements = [title, subtitle, missionStrip, difficultyPanel, button]
     gsap.killTweensOf([this.el, ...animatedElements])
     if (prefersReducedMotion()) {
       gsap.set(animatedElements, { clearProps: "transform,opacity" })

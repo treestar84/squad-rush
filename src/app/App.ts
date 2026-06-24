@@ -1,6 +1,7 @@
 import type { AbstractEngine, Scene } from "@babylonjs/core"
 import { Game } from "../game/Game"
 import { StartHeroPreview } from "../game/StartHeroPreview"
+import { DEFAULT_DIFFICULTY, parseDifficulty, type DifficultyProfile } from "../game/data/difficultyData"
 import type { QualitySystem } from "../game/systems/QualitySystem"
 import { loadGameAssets, type AssetManifest } from "../game/utils/assetLoader"
 import { LoadingScreen } from "../ui/LoadingScreen"
@@ -31,6 +32,7 @@ export class App {
   private readonly startScreen: StartScreen
   private game: Game | null = null
   private startHero: StartHeroPreview | null = null
+  private selectedDifficulty: DifficultyProfile = DEFAULT_DIFFICULTY
   private gameStarted = false
   private countdownRunning = false
   assets?: AssetManifest
@@ -40,8 +42,13 @@ export class App {
     this.countdown = new PreGameCountdown(deps.root)
     this.startScreen = new StartScreen(deps.root)
     this.startScreen.hide({ immediate: true })
-    this.startScreen.onStart = () => {
-      void this.beginCountdown()
+    this.selectedDifficulty = parseDifficulty(new URLSearchParams(window.location.search).get("difficulty"))
+    this.startScreen.setDifficulty(this.selectedDifficulty)
+    this.startScreen.onDifficultyChange = (difficulty) => {
+      this.selectedDifficulty = difficulty
+    }
+    this.startScreen.onStart = (difficulty) => {
+      void this.beginCountdown(difficulty)
     }
   }
 
@@ -51,7 +58,6 @@ export class App {
     }
     this.assets = await loadGameAssets(this.deps.scene, (pct) => this.loadingScreen.setProgress(pct))
     this.startHero = new StartHeroPreview(this.deps.scene, this.assets.soldierAsset)
-    this.prepareGame()
     this.transitionTo("start")
   }
 
@@ -71,7 +77,7 @@ export class App {
       this.startScreen.show()
       window.__squadRushQaStarted = false
       window.__squadRushQaStart = () => {
-        void this.beginCountdown()
+        void this.beginCountdown(this.selectedDifficulty)
       }
       return
     }
@@ -91,10 +97,12 @@ export class App {
     return this.state
   }
 
-  private async beginCountdown(): Promise<void> {
+  private async beginCountdown(difficulty: DifficultyProfile): Promise<void> {
     if (this.countdownRunning || this.gameStarted) {
       return
     }
+    this.selectedDifficulty = difficulty
+    this.prepareGame()
     this.countdownRunning = true
     this.state = "countdown"
     this.loadingScreen.hide()
@@ -121,6 +129,7 @@ export class App {
       uiRoot: this.deps.root,
       assets: this.assets,
       quality: this.deps.quality,
+      difficulty: this.selectedDifficulty,
     })
     this.game.onGameOver = () => {
       this.state = "result"

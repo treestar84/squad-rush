@@ -1,4 +1,5 @@
 import type { Scene } from "@babylonjs/core"
+import type { DifficultyProfile } from "../data/difficultyData"
 import type { MonsterConfig, SpawnPattern } from "../data/monsterData"
 import { CONTINUOUS_SPAWN, MONSTER_CONFIGS } from "../data/monsterData"
 import { MonsterPool, type MonsterInstance } from "../pools/MonsterPool"
@@ -45,7 +46,12 @@ export class MonsterWaveSystem {
   private spawnOrdinal = 0
   private frameOrdinal = 0
 
-  constructor(scene: Scene, monsterAssets: MonsterModelAssets | null, private readonly quality: QualitySettings) {
+  constructor(
+    scene: Scene,
+    monsterAssets: MonsterModelAssets | null,
+    private readonly quality: QualitySettings,
+    private readonly difficulty: DifficultyProfile,
+  ) {
     this.pool = new MonsterPool(scene, monsterAssets, quality.maxMonsters)
   }
 
@@ -104,7 +110,7 @@ export class MonsterWaveSystem {
   }
 
   private get maxActivePressure(): number {
-    return Math.min(this.quality.maxMonsters, MAX_ACTIVE_PRESSURE_MONSTERS)
+    return Math.min(this.quality.maxMonsters, Math.round(MAX_ACTIVE_PRESSURE_MONSTERS * this.difficulty.pressureMultiplier))
   }
 
   private shouldAnimateMonster(monster: MonsterInstance, distanceAhead: number): boolean {
@@ -173,11 +179,11 @@ export class MonsterWaveSystem {
     let spawned = 0
     let batchIndex = 0
     for (const batch of this.getSpawnBatches(baseZ, ordinal)) {
-      const count = Math.min(batch.count, remainingCapacity - spawned)
+      const count = Math.min(Math.ceil(batch.count * this.difficulty.spawnMultiplier), remainingCapacity - spawned)
       if (count <= 0) {
         return
       }
-      this.spawnGroup(batch.config, count, baseZ + batchIndex * BATCH_LAYER_DEPTH, batch.pattern)
+      this.spawnGroup(this.scaleConfig(batch.config), count, baseZ + batchIndex * BATCH_LAYER_DEPTH, batch.pattern)
       spawned += count
       batchIndex += 1
     }
@@ -214,6 +220,18 @@ export class MonsterWaveSystem {
 
   private isMidBossSpawn(baseZ: number): boolean {
     return MID_BOSS_SPAWN_Z.some((spawnZ) => Math.abs(baseZ - spawnZ) <= CONTINUOUS_SPAWN.spacing * 0.5)
+  }
+
+  private scaleConfig(config: MonsterConfig): MonsterConfig {
+    if (this.difficulty.id === "easy") {
+      return config
+    }
+    return {
+      ...config,
+      hp: Math.ceil(config.hp * this.difficulty.healthMultiplier),
+      speed: config.speed * this.difficulty.speedMultiplier,
+      damage: Math.ceil(config.damage * this.difficulty.damageMultiplier),
+    }
   }
 
   private spawnGroup(config: MonsterConfig, count: number, baseZ: number, pattern: SpawnPattern): void {

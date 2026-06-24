@@ -1,5 +1,6 @@
 import type { Scene } from "@babylonjs/core"
 import { LEVEL_1 } from "./data/levelData"
+import type { DifficultyProfile } from "./data/difficultyData"
 import { CameraController } from "./CameraController"
 import { addAuthoredEnvironmentSetpieces } from "./EnvironmentSetpieces"
 import { publishAdvancedGateDebug } from "./GameDebug"
@@ -30,6 +31,7 @@ export type GameDeps = {
   readonly uiRoot: HTMLElement
   readonly assets: AssetManifest | undefined
   readonly quality: QualitySystem
+  readonly difficulty: DifficultyProfile
 }
 
 export class Game {
@@ -49,6 +51,7 @@ export class Game {
   private readonly pause: GamePause
   private readonly result: ResultScreen
   private readonly audio: AudioSystem
+  private readonly difficulty: DifficultyProfile
   private monstersKilled = 0
   private gameOver = false
   private fpsAccum = 0
@@ -61,6 +64,7 @@ export class Game {
   onGameOver?: (victory: boolean) => void
 
   constructor(deps: GameDeps) {
+    this.difficulty = deps.difficulty
     addAuthoredEnvironmentSetpieces(deps.scene, deps.assets, deps.quality.settings)
     this.fx = new FXSystem(deps.scene, Math.round(112 * deps.quality.settings.particleMultiplier) + 24)
     this.audio = new AudioSystem()
@@ -83,7 +87,7 @@ export class Game {
       defaultAsset: monsterDefaultAsset ?? null,
       fastAsset: monsterFastAsset ?? null,
       tankAsset: monsterTankAsset ?? null,
-    }, deps.quality.settings)
+    }, deps.quality.settings, deps.difficulty)
     this.collision = new CollisionSystem(this.squad, this.waves)
     this.obstacles = new ObstacleSystem(deps.scene, this.squad, this.fx)
     this.projectiles = new ProjectileSystem(deps.scene, this.squad.soldierCapacity * 16)
@@ -188,7 +192,7 @@ export class Game {
         continue
       }
       if (canDamageSquad) {
-        this.squad.removeSoldiers(monster.config?.damage ?? 1)
+        this.squad.removeSoldiers(Math.ceil((monster.config?.damage ?? 1) * this.difficulty.damageMultiplier))
         this.squadHitRecovery = SQUAD_HIT_RECOVERY_SECONDS
         canDamageSquad = false
       }
