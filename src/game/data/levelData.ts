@@ -2,7 +2,6 @@ export const SEGMENT_TYPES = {
   intro: "INTRO",
   gate: "GATE",
   wave: "WAVE",
-  boss: "BOSS",
 } as const
 
 export type SegmentType = (typeof SEGMENT_TYPES)[keyof typeof SEGMENT_TYPES]
@@ -25,16 +24,16 @@ export type LevelData = {
 
 export const LEVEL_1: LevelData = {
   id: "level_1",
-  startSoldiers: 20,
+  startSoldiers: 1,
   trackWidth: 14,
-  forwardSpeed: 8,
-  totalLength: 205,
+  forwardSpeed: 2.27,
+  totalLength: 380,
   segments: [
-    { type: SEGMENT_TYPES.intro, startZ: 0, endZ: 20 },
-    { type: SEGMENT_TYPES.gate, startZ: 20, endZ: 40, configId: "gate_pair_1" },
-    { type: SEGMENT_TYPES.wave, startZ: 40, endZ: 90, configId: "wave_1" },
-    { type: SEGMENT_TYPES.gate, startZ: 90, endZ: 110, configId: "gate_pair_2" },
-    { type: SEGMENT_TYPES.wave, startZ: 110, endZ: 160, configId: "wave_2" },
-    { type: SEGMENT_TYPES.boss, startZ: 160, endZ: 205, configId: "boss_titan" },
+    { type: SEGMENT_TYPES.intro, startZ: 0, endZ: 32 },
+    { type: SEGMENT_TYPES.gate, startZ: 32, endZ: 52, configId: "gate_pair_1" },
+    { type: SEGMENT_TYPES.wave, startZ: 52, endZ: 176, configId: "continuous_swarm_1" },
+    { type: SEGMENT_TYPES.gate, startZ: 176, endZ: 198, configId: "gate_pair_2" },
+    { type: SEGMENT_TYPES.wave, startZ: 198, endZ: 356, configId: "continuous_swarm_2" },
+    { type: SEGMENT_TYPES.gate, startZ: 356, endZ: 380, configId: "finish_run" },
   ],
 } as const

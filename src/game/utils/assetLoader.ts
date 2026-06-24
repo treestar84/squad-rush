@@ -1,81 +1,214 @@
 import {
-  Color3,
+  AnimationGroup,
+  AssetContainer,
   Mesh,
-  MeshBuilder,
   Scene,
-  StandardMaterial,
   TransformNode,
 } from "@babylonjs/core"
-import { LoadAssetContainerAsync } from "@babylonjs/core/Loading/sceneLoader"
+import { LoadAssetContainerAsync, type LoadAssetContainerOptions } from "@babylonjs/core/Loading/sceneLoader"
 import "@babylonjs/loaders/glTF"
 
+export type GltfAsset = {
+  readonly root: Mesh
+  readonly animGroups: readonly AnimationGroup[]
+  readonly isReal: boolean
+  readonly container?: AssetContainer
+}
+
 export type AssetManifest = {
-  readonly soldier: Mesh
-  readonly monsterBasic: Mesh
-  readonly monsterTank: Mesh
-  readonly boss: Mesh
+  readonly soldierAsset: GltfAsset
+  readonly ghostAsset: GltfAsset
+  readonly monsterDoguriAsset: GltfAsset
+  readonly monsterFastAsset: GltfAsset
+  readonly monsterTankAsset: GltfAsset
+  readonly yetiAsset: GltfAsset
+  readonly roadSegmentAsset: GltfAsset
+  readonly gateFrameAsset: GltfAsset
 }
 
-function makeTemplate(scene: Scene, name: string, color: Color3, height: number, diameter: number): Mesh {
-  const mesh = MeshBuilder.CreateCylinder(name, { height, diameter, tessellation: 8 }, scene)
-  const mat = new StandardMaterial(`${name}Mat`, scene)
-  mat.diffuseColor = color
-  mat.specularColor = new Color3(0.12, 0.14, 0.16)
-  mesh.material = mat
-  mesh.setEnabled(false)
-  return mesh
+export type GltfInstance = {
+  readonly root: Mesh
+  readonly animationGroups: readonly AnimationGroup[]
 }
 
-async function loadTemplate(
-  scene: Scene,
-  filename: string,
-  templateName: string,
-  fallback: () => Mesh,
-): Promise<Mesh> {
-  try {
-    const container = await LoadAssetContainerAsync(`/assets/models/${filename}`, scene)
-    container.addAllToScene()
-    const root = new Mesh(templateName, scene)
-    const importedMeshes = container.meshes.filter((mesh) => mesh instanceof Mesh)
-    for (const mesh of importedMeshes) {
-      if (mesh.name !== "__root__") {
-        mesh.parent = root
-      }
-    }
-    for (const transform of container.transformNodes) {
-      if (transform instanceof TransformNode && transform.name !== "__root__") {
-        transform.parent = root
-      }
-    }
-    root.setEnabled(false)
-    return root
-  } catch (error) {
-    if (error instanceof Error) {
-      console.warn(`Asset ${filename} unavailable, using procedural fallback: ${error.message}`)
-    }
-    return fallback()
+export type GltfCloneOptions = {
+  readonly cloneMaterials?: boolean
+}
+
+type GltfLoadConfig = {
+  readonly scene: Scene
+  readonly filename: string
+  readonly templateName: string
+  readonly skipMaterials?: boolean
+}
+
+function loaderOptions(config: GltfLoadConfig): LoadAssetContainerOptions | undefined {
+  if (config.skipMaterials !== true) {
+    return undefined
   }
+  return { pluginOptions: { gltf: { skipMaterials: true } } }
+}
+
+async function loadGltfAsset(config: GltfLoadConfig): Promise<GltfAsset> {
+  try {
+    const container = await LoadAssetContainerAsync(`/assets/models/${config.filename}`, config.scene, loaderOptions(config))
+    container.addAllToScene()
+    const root = new Mesh(config.templateName, config.scene)
+
+    for (const node of container.transformNodes) {
+      if (node.name !== "__root__" && node.parent === null) {
+        node.parent = root
+      }
+    }
+    for (const abstractMesh of container.meshes) {
+      if (abstractMesh.name !== "__root__" && abstractMesh.parent === null && abstractMesh instanceof Mesh) {
+        abstractMesh.parent = root
+      }
+    }
+
+    root.setEnabled(false)
+    for (const child of root.getChildMeshes(false)) {
+      child.setEnabled(false)
+    }
+    const animGroups = container.animationGroups
+    for (const ag of animGroups) {
+      ag.stop()
+    }
+    return { root, animGroups, isReal: true, container }
+  } catch (error) {
+    if (!(error instanceof Error)) {
+      throw error
+    }
+    console.warn(`Asset ${config.filename} unavailable, using procedural fallback: ${error.message}`)
+    const emptyRoot = new Mesh(config.templateName, config.scene)
+    emptyRoot.setEnabled(false)
+    return { root: emptyRoot, animGroups: [], isReal: false }
+  }
+}
+
+export function cloneGltfInstance(asset: GltfAsset, name: string, scene: Scene, options: GltfCloneOptions = {}): GltfInstance {
+  if (asset.container !== undefined) {
+    const clonedRoot = new Mesh(name, scene)
+    const entries = asset.container.instantiateModelsToScene(
+      (sourceName) => `${name}_${sourceName}`,
+      options.cloneMaterials === true,
+    )
+    for (const node of entries.rootNodes) {
+      if (node instanceof Mesh || node instanceof TransformNode) {
+        node.parent = clonedRoot
+      }
+    }
+    for (const child of clonedRoot.getChildMeshes(false)) {
+      child.isPickable = false
+      child.setEnabled(true)
+    }
+    return { root: clonedRoot, animationGroups: entries.animationGroups }
+  }
+
+  const clonedRoot = asset.root.clone(name, null, false)
+  if (clonedRoot !== null) {
+    clonedRoot.name = name
+    clonedRoot.isPickable = false
+    clonedRoot.setEnabled(true)
+    for (const child of clonedRoot.getChildMeshes(false)) {
+      child.isPickable = false
+      child.setEnabled(true)
+    }
+    return { root: clonedRoot, animationGroups: [] }
+  }
+
+  return { root: new Mesh(name, scene), animationGroups: [] }
+}
+
+export function cloneGltfVisual(asset: GltfAsset, name: string, scene: Scene, options: GltfCloneOptions = {}): Mesh {
+  return cloneGltfInstance(asset, name, scene, options).root
+}
+
+export function getAnimGroup(groups: AnimationGroup[], name: string): AnimationGroup | undefined {
+  return groups.find((ag) => ag.name.startsWith(name))
 }
 
 export async function loadGameAssets(
   scene: Scene,
   onProgress: (pct: number) => void,
 ): Promise<AssetManifest> {
-  const soldier = await loadTemplate(scene, "soldier.glb", "template_soldier", () =>
-    makeTemplate(scene, "template_soldier", new Color3(0.08, 0.47, 0.92), 1.8, 0.65),
-  )
-  onProgress(35)
-  const monsterBasic = await loadTemplate(scene, "monster_basic.glb", "template_monster_basic", () =>
-    makeTemplate(scene, "template_monster_basic", new Color3(0.84, 0.12, 0.16), 1.9, 0.9),
-  )
-  onProgress(60)
-  const monsterTank = await loadTemplate(scene, "monster_tank.glb", "template_monster_tank", () =>
-    makeTemplate(scene, "template_monster_tank", new Color3(0.42, 0.18, 0.68), 2.3, 1.2),
-  )
-  onProgress(82)
-  const boss = await loadTemplate(scene, "boss.glb", "template_boss", () =>
-    makeTemplate(scene, "template_boss", new Color3(0.48, 0.12, 0.72), 5, 3.8),
-  )
+  const soldierAsset = loadGltfAsset({ scene, filename: "soldier.gltf", templateName: "template_soldier" })
+    .then((asset) => {
+      onProgress(35)
+      return asset
+    })
+  const ghostAsset = loadGltfAsset({ scene, filename: "ghost.gltf", templateName: "template_ghost" })
+    .then((asset) => {
+      onProgress(58)
+      return asset
+    })
+  const monsterFastAsset = loadGltfAsset({ scene, filename: "monster_basic.glb", templateName: "template_monster_fast" })
+    .then((asset) => {
+      onProgress(68)
+      return asset
+    })
+  const monsterDoguriAsset = loadGltfAsset({ scene, filename: "monster_doguri.glb", templateName: "template_monster_doguri" })
+    .then((asset) => {
+      onProgress(72)
+      return asset
+    })
+  const monsterTankAsset = loadGltfAsset({ scene, filename: "monster_tank.glb", templateName: "template_monster_tank" })
+    .then((asset) => {
+      onProgress(76)
+      return asset
+    })
+  const yetiAsset = loadGltfAsset({ scene, filename: "yeti.gltf", templateName: "template_yeti" })
+    .then((asset) => {
+      onProgress(82)
+      return asset
+    })
+  const roadSegmentAsset = loadGltfAsset({
+    scene,
+    filename: "environment/road_segment.glb",
+    templateName: "template_road_segment",
+    skipMaterials: true,
+  }).then((asset) => {
+    onProgress(90)
+    return asset
+  })
+  const gateFrameAsset = loadGltfAsset({
+    scene,
+    filename: "environment/gate_frame.glb",
+    templateName: "template_gate_frame",
+    skipMaterials: true,
+  }).then((asset) => {
+    onProgress(96)
+    return asset
+  })
+
+  const [
+    loadedSoldierAsset,
+    loadedGhostAsset,
+    loadedMonsterDoguriAsset,
+    loadedMonsterFastAsset,
+    loadedMonsterTankAsset,
+    loadedYetiAsset,
+    loadedRoadSegmentAsset,
+    loadedGateFrameAsset,
+  ] = await Promise.all([
+    soldierAsset,
+    ghostAsset,
+    monsterDoguriAsset,
+    monsterFastAsset,
+    monsterTankAsset,
+    yetiAsset,
+    roadSegmentAsset,
+    gateFrameAsset,
+  ])
   onProgress(100)
-  return { soldier, monsterBasic, monsterTank, boss }
+  return {
+    soldierAsset: loadedSoldierAsset,
+    ghostAsset: loadedGhostAsset,
+    monsterDoguriAsset: loadedMonsterDoguriAsset,
+    monsterFastAsset: loadedMonsterFastAsset,
+    monsterTankAsset: loadedMonsterTankAsset,
+    yetiAsset: loadedYetiAsset,
+    roadSegmentAsset: loadedRoadSegmentAsset,
+    gateFrameAsset: loadedGateFrameAsset,
+  }
 }

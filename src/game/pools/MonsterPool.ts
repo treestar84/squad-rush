@@ -1,12 +1,15 @@
-import {
-  Color3,
-  Mesh,
-  MeshBuilder,
-  Scene,
-  StandardMaterial,
-} from "@babylonjs/core"
-import type { MonsterConfig } from "../data/monsterData"
+import { Mesh, Scene, StandardMaterial } from "@babylonjs/core"
+import type { AbstractMesh } from "@babylonjs/core"
+import { MONSTER_BEHAVIORS, type MonsterBehavior, type MonsterConfig } from "../data/monsterData"
 import { ObjectPool } from "./ObjectPool"
+import {
+  applyMonsterVisualTint,
+  createMonsterContactShadowMaterial,
+  createMonsterVisual,
+  type MonsterModelAssets,
+  usesAuthoredMonsterVisual,
+} from "./MonsterVisualFactory"
+import { ACTOR_GROUND_Y } from "../WorldGeometry"
 
 export type MonsterInstance = {
   readonly mesh: Mesh
@@ -16,29 +19,51 @@ export type MonsterInstance = {
   alive: boolean
   velocityX: number
   velocityZ: number
+  originX: number
+  spawnId: number
+  variantScale: number
+  hitPulse: number
+  swayPhase: number
+  swayAmplitude: number
+  swaySpeed: number
+  hitRadius: number
+  hitHalfDepth: number
+  visual: Mesh | null
+  visualBehavior: MonsterBehavior | null
 }
+
+type VisualHitBounds = {
+  readonly radius: number
+  readonly halfDepth: number
+}
+
+const MIN_VISUAL_HIT_RADIUS = 0.24
+const MIN_VISUAL_HIT_HALF_DEPTH = 0.2
+const MAX_VISUAL_HIT_RADIUS = 1.45
+const MAX_VISUAL_HIT_HALF_DEPTH = 1.2
+const FALLBACK_HIT_RADIUS_SCALE = 0.78
+const FALLBACK_HIT_HALF_DEPTH_SCALE = 0.64
 
 export class MonsterPool {
   private readonly pool: ObjectPool<MonsterInstance>
-  private readonly eyeMat: StandardMaterial
-  private readonly spikeMat: StandardMaterial
+  private readonly contactShadowMat: StandardMaterial
+  private spawnSerial = 0
 
   constructor(
     private readonly scene: Scene,
-    private readonly templateMesh: Mesh | null,
+    private readonly assets: MonsterModelAssets | null,
     capacity: number,
   ) {
-    this.eyeMat = new StandardMaterial("monsterEyeMat", scene)
-    this.eyeMat.diffuseColor = new Color3(1, 0.08, 0.04)
-    this.eyeMat.emissiveColor = new Color3(0.85, 0.02, 0.01)
-    this.spikeMat = new StandardMaterial("monsterSpikeMat", scene)
-    this.spikeMat.diffuseColor = new Color3(0.04, 0.02, 0.02)
+    this.contactShadowMat = createMonsterContactShadowMaterial(scene)
     this.pool = new ObjectPool<MonsterInstance>(
       (index) => this.createInstance(index),
       (monster) => {
         monster.mesh.setEnabled(false)
         monster.alive = false
         monster.hp = 0
+        monster.hitPulse = 0
+        monster.hitRadius = MIN_VISUAL_HIT_RADIUS
+        monster.hitHalfDepth = MIN_VISUAL_HIT_HALF_DEPTH
       },
       capacity,
     )
@@ -53,12 +78,30 @@ export class MonsterPool {
     inst.hp = config.hp
     inst.maxHp = config.hp
     inst.alive = true
+    this.spawnSerial += 1
+    inst.spawnId = this.spawnSerial
+    const seed = this.variantSeed(x, z, config.id.length)
+    inst.originX = x
     inst.velocityX = 0
     inst.velocityZ = -config.speed
-    inst.mesh.scaling.setAll(config.scale)
-    inst.mesh.position.set(x, config.scale, z)
+    inst.variantScale = config.scale * this.getScaleVariant(config, seed)
+    inst.hitPulse = 0
+    inst.swayPhase = seed * Math.PI * 2
+    inst.swayAmplitude = this.getSwayAmplitude(config, seed)
+    inst.swaySpeed = 0.62 + seed * 0.44
+    this.ensureVisual(inst, config.behavior)
+    inst.mesh.scaling.setAll(inst.variantScale)
+    inst.mesh.rotation.y = (seed - 0.5) * 0.38
+    const usesAuthoredVisual = usesAuthoredMonsterVisual(this.assets, config.behavior)
+    const rootY = usesAuthoredVisual ? ACTOR_GROUND_Y : inst.variantScale * 0.5
+    inst.mesh.position.set(x, rootY, z)
+    if (!usesAuthoredVisual) {
+      applyMonsterVisualTint(inst.mesh, config)
+    }
     inst.mesh.setEnabled(true)
-    this.applyColor(inst.mesh, Color3.FromHexString(config.cssColor))
+    const hitBounds = this.calculateVisualHitBounds(inst)
+    inst.hitRadius = hitBounds.radius
+    inst.hitHalfDepth = hitBounds.halfDepth
     return inst
   }
 
@@ -75,7 +118,10 @@ export class MonsterPool {
   }
 
   private createInstance(index: number): MonsterInstance {
-    const mesh = this.createMonsterVisual(index)
+    const mesh = new Mesh(`monster_${index}`, this.scene)
+    const visual = createMonsterVisual(this.scene, index, MONSTER_BEHAVIORS.basic, this.assets, this.contactShadowMat)
+    visual.parent = mesh
+    visual.position.set(0, 0, 0)
     mesh.setEnabled(false)
     return {
       mesh,
@@ -85,58 +131,114 @@ export class MonsterPool {
       alive: false,
       velocityX: 0,
       velocityZ: 0,
+      originX: 0,
+      spawnId: 0,
+      variantScale: 1,
+      hitPulse: 0,
+      swayPhase: 0,
+      swayAmplitude: 0,
+      swaySpeed: 0,
+      hitRadius: MIN_VISUAL_HIT_RADIUS,
+      hitHalfDepth: MIN_VISUAL_HIT_HALF_DEPTH,
+      visual,
+      visualBehavior: MONSTER_BEHAVIORS.basic,
     }
   }
 
-  private createMonsterVisual(index: number): Mesh {
-    const root = new Mesh(`monster_${index}`, this.scene)
-    const imported = this.templateMesh?.clone(`monster_glb_${index}`, null)
-    if (imported !== undefined && imported !== null) {
-      imported.parent = root
-      imported.scaling.setAll(0.72)
-      imported.position.set(0, -0.22, 0)
+  private ensureVisual(inst: MonsterInstance, behavior: MonsterBehavior): void {
+    if (inst.visualBehavior === behavior && inst.visual !== null) {
+      return
     }
-    const body = MeshBuilder.CreateSphere(`monster_body_${index}`, { diameterX: 1.25, diameterY: 1.05, diameterZ: 1.35, segments: 16 }, this.scene)
-    body.parent = root
-    body.position.set(0, 0.62, 0)
-    body.material = this.createFallbackMaterial(index)
-    const jaw = MeshBuilder.CreateBox(`monster_jaw_${index}`, { width: 0.72, height: 0.28, depth: 0.32 }, this.scene)
-    jaw.parent = root
-    jaw.position.set(0, 0.42, 0.62)
-    jaw.material = this.spikeMat
-    this.decorateMonster(root, index)
-    return root
+    inst.visual?.dispose(false, false)
+    const visual = createMonsterVisual(this.scene, this.visualIndex(inst), behavior, this.assets, this.contactShadowMat)
+    visual.parent = inst.mesh
+    visual.position.set(0, 0, 0)
+    visual.scaling.setAll(1)
+    inst.visual = visual
+    inst.visualBehavior = behavior
   }
 
-  private decorateMonster(mesh: Mesh, index: number): void {
-    for (const x of [-0.18, 0.18]) {
-      const eye = MeshBuilder.CreateSphere(`monster_eye_${index}_${x}`, { diameter: 0.18, segments: 8 }, this.scene)
-      eye.material = this.eyeMat
-      eye.parent = mesh
-      eye.position.set(x, 0.82, 0.62)
+  private visualIndex(inst: MonsterInstance): number {
+    return this.pool.getActive().indexOf(inst)
+  }
+
+  private getScaleVariant(config: MonsterConfig, seed: number): number {
+    if (config.behavior === MONSTER_BEHAVIORS.tank) {
+      return 0.94 + seed * 0.24
     }
-    const spike = MeshBuilder.CreateCylinder(`monster_spike_${index}`, { height: 0.46, diameterTop: 0, diameterBottom: 0.28, tessellation: 8 }, this.scene)
-    spike.material = this.spikeMat
-    spike.parent = mesh
-    spike.position.set(0, 1.18, -0.08)
+    if (config.behavior === MONSTER_BEHAVIORS.fast) {
+      return 0.86 + seed * 0.18
+    }
+    return 0.98 + seed * 0.2
   }
 
-  private createFallbackMaterial(index: number): StandardMaterial {
-    const mat = new StandardMaterial(`monsterBodyMat_${index}`, this.scene)
-    mat.diffuseColor = new Color3(0.82, 0.12, 0.16)
-    mat.emissiveColor = new Color3(0.12, 0.01, 0.01)
-    mat.specularColor = new Color3(0.55, 0.18, 0.12)
-    return mat
+  private getSwayAmplitude(config: MonsterConfig, seed: number): number {
+    if (config.behavior === MONSTER_BEHAVIORS.tank) {
+      return 0.02 + seed * 0.04
+    }
+    return 0.045 + seed * 0.1
   }
 
-  private applyColor(mesh: Mesh, color: Color3): void {
-    const meshes = [mesh, ...mesh.getChildMeshes(false)]
-    for (const child of meshes) {
-      const material = child.material
-      if (material instanceof StandardMaterial && material !== this.eyeMat && material !== this.spikeMat) {
-        material.diffuseColor = color
-        material.emissiveColor = color.scale(0.12)
+  private calculateVisualHitBounds(inst: MonsterInstance): VisualHitBounds {
+    const fallback = this.getFallbackHitBounds(inst)
+    const visual = inst.visual
+    if (visual === null) {
+      return fallback
+    }
+
+    let minX = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    let minZ = Number.POSITIVE_INFINITY
+    let maxZ = Number.NEGATIVE_INFINITY
+    inst.mesh.computeWorldMatrix(true)
+    visual.computeWorldMatrix(true)
+    for (const child of visual.getChildMeshes(false)) {
+      if (!this.isHitVolumeMesh(child)) {
+        continue
+      }
+      child.computeWorldMatrix(true)
+      for (const point of child.getBoundingInfo().boundingBox.vectorsWorld) {
+        minX = Math.min(minX, point.x)
+        maxX = Math.max(maxX, point.x)
+        minZ = Math.min(minZ, point.z)
+        maxZ = Math.max(maxZ, point.z)
       }
     }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minZ) || !Number.isFinite(maxZ)) {
+      return fallback
+    }
+
+    return {
+      radius: this.clampHitSize((maxX - minX) * 0.5, MIN_VISUAL_HIT_RADIUS, MAX_VISUAL_HIT_RADIUS),
+      halfDepth: this.clampHitSize((maxZ - minZ) * 0.5, MIN_VISUAL_HIT_HALF_DEPTH, MAX_VISUAL_HIT_HALF_DEPTH),
+    }
+  }
+
+  private getFallbackHitBounds(inst: MonsterInstance): VisualHitBounds {
+    return {
+      radius: this.clampHitSize(inst.variantScale * FALLBACK_HIT_RADIUS_SCALE, MIN_VISUAL_HIT_RADIUS, MAX_VISUAL_HIT_RADIUS),
+      halfDepth: this.clampHitSize(inst.variantScale * FALLBACK_HIT_HALF_DEPTH_SCALE, MIN_VISUAL_HIT_HALF_DEPTH, MAX_VISUAL_HIT_HALF_DEPTH),
+    }
+  }
+
+  private clampHitSize(value: number, min: number, max: number): number {
+    if (!Number.isFinite(value)) {
+      return min
+    }
+    return Math.min(max, Math.max(min, value))
+  }
+
+  private isHitVolumeMesh(mesh: AbstractMesh): boolean {
+    const name = mesh.name.toLowerCase()
+    return !name.includes("contact_shadow")
+      && !name.includes("threat_badge")
+      && !name.includes("_cue_")
+      && !name.includes("back_spine")
+      && !name.includes("variant_")
+  }
+
+  private variantSeed(x: number, z: number, salt: number): number {
+    return Math.abs(Math.sin(x * 12.9898 + z * 78.233 + salt * 37.719) * 43758.5453) % 1
   }
 }

@@ -38,7 +38,7 @@ separator() {
 }
 
 # ── 사전 확인 ──────────────────────────────────────────────────────────────
-separator "Squad Rush — Codex Goal 루프 시작 ($(date))"
+separator "바로 Go 스쿼드 — Codex Goal 루프 시작 ($(date))"
 
 if ! command -v codex &>/dev/null; then
   log "❌ Codex CLI를 찾을 수 없습니다. 설치: npm install -g @openai/codex"
@@ -88,7 +88,7 @@ while true; do
     if bash scripts/verify-gates.sh 2>&1 | tee -a "$MASTER_LOG"; then
       separator "🏆 모든 품질 게이트 통과! (총 $LOOP 루프)"
       git add -A 2>/dev/null || true
-      git commit -m "feat: Squad Rush v1.0 — 15/15 quality gates passed (loop $LOOP)" \
+      git commit -m "feat: 바로 Go 스쿼드 v1.0 — 15/15 quality gates passed (loop $LOOP)" \
         2>/dev/null || true
       exit 0
     fi
@@ -108,7 +108,7 @@ while true; do
 당신은 고품질 웹 3D 게임을 자율적으로 구현하는 시니어 게임 개발자입니다.
 
 ## 목표
-Vite + TypeScript + Babylon.js로 'Squad Rush' 웹 게임을 완전히 구현하라.
+Vite + TypeScript + Babylon.js로 '바로 Go 스쿼드' 웹 게임을 완전히 구현하라.
 Last War 모바일 게임의 90% 품질 수준이 목표다.
 
 ## 환경
@@ -227,7 +227,7 @@ for line in sys.stdin:
   if bash scripts/verify-gates.sh 2>&1 | tee -a "$MASTER_LOG"; then
     separator "🏆 모든 품질 게이트 통과! (Loop $LOOP)"
     git add -A 2>/dev/null || true
-    git commit -m "feat: Squad Rush v1.0 — 15/15 quality gates passed" 2>/dev/null || true
+    git commit -m "feat: 바로 Go 스쿼드 v1.0 — 15/15 quality gates passed" 2>/dev/null || true
     exit 0
   fi
 

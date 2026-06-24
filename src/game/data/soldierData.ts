@@ -8,8 +8,8 @@ export type SoldierStats = {
 
 export const SOLDIER_BASE: SoldierStats = {
   hp: 3,
-  attackDamage: 18,
-  attackRange: 31,
-  fireRate: 2.8,
-  bulletSpeed: 40,
+  attackDamage: 1,
+  attackRange: 42,
+  fireRate: 4,
+  bulletSpeed: 68,
 } as const

@@ -1,0 +1,5 @@
+export const ROAD_SURFACE_Y = 0
+export const ACTOR_GROUND_Y = ROAD_SURFACE_Y + 0.02
+export const FALLBACK_SOLDIER_ROOT_Y = 0.82
+export const ROAD_SEGMENT_DEPTH = 10
+export const ROAD_FORWARD_VIEW_BUFFER = 150

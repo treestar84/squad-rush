@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 mkdir -p public/assets/models/environment public/assets/textures public/assets/audio public/assets/ui
 
 cat <<'MSG'
-Squad Rush asset pipeline directories are ready.
+바로 Go 스쿼드 asset pipeline directories are ready.
 
 This build uses Babylon.js procedural meshes so it runs without external downloads.
 To upgrade art assets, add commercial-use GLB/KTX2/audio files with these names:

@@ -30,37 +30,51 @@ export type WaveConfig = {
   readonly startZ: number
 }
 
-export const MONSTER_CONFIGS: Record<string, MonsterConfig> = {
+export type ContinuousSpawnConfig = {
+  readonly startZ: number
+  readonly endZ: number
+  readonly spacing: number
+  readonly lookAhead: number
+}
+
+export const MONSTER_CONFIGS = {
   basic: {
     id: "basic",
-    hp: 24,
-    speed: 2.5,
+    hp: 1,
+    speed: 0.24,
     damage: 1,
-    scale: 1,
+    scale: 0.4,
     behavior: MONSTER_BEHAVIORS.basic,
     cssColor: "#DC2626",
   },
   fast: {
     id: "fast",
-    hp: 12,
-    speed: 4.2,
+    hp: 2,
+    speed: 0.36,
     damage: 1,
-    scale: 0.78,
+    scale: 0.33,
     behavior: MONSTER_BEHAVIORS.fast,
     cssColor: "#D97706",
   },
   tank: {
     id: "tank",
-    hp: 90,
-    speed: 1.1,
-    damage: 2,
-    scale: 1.6,
+    hp: 42,
+    speed: 0.24,
+    damage: 3,
+    scale: 1.08,
     behavior: MONSTER_BEHAVIORS.tank,
     cssColor: "#7C3AED",
   },
+} as const satisfies Record<string, MonsterConfig>
+
+export const CONTINUOUS_SPAWN: ContinuousSpawnConfig = {
+  startZ: 48,
+  endZ: 366,
+  spacing: 1.22,
+  lookAhead: 60,
 } as const
 
-export const WAVE_CONFIGS: Record<string, WaveConfig> = {
+export const WAVE_CONFIGS = {
   wave_1: {
     id: "wave_1",
     startZ: 60,
@@ -78,4 +92,4 @@ export const WAVE_CONFIGS: Record<string, WaveConfig> = {
       { configId: "fast", count: 14, spawnPattern: "V_SHAPE" },
     ],
   },
-} as const
+} as const satisfies Record<string, WaveConfig>

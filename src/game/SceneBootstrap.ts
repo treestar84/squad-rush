@@ -1,15 +1,15 @@
 import {
   ArcRotateCamera,
+  type AbstractEngine,
   Color3,
   Color4,
   DirectionalLight,
-  Engine,
   HemisphericLight,
   Scene,
   Vector3,
 } from "@babylonjs/core"
 
-export function initScene(engine: Engine): Scene {
+export function initScene(engine: AbstractEngine): Scene {
   const scene = new Scene(engine)
   scene.clearColor = new Color4(0.53, 0.81, 0.98, 1)
   scene.fogMode = Scene.FOGMODE_LINEAR

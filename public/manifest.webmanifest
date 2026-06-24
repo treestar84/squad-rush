@@ -1,6 +1,6 @@
 {
-  "name": "Squad Rush",
-  "short_name": "Squad Rush",
+  "name": "바로 Go 스쿼드",
+  "short_name": "바로 Go 스쿼드",
   "start_url": "/",
   "display": "fullscreen",
   "orientation": "portrait",

@@ -15,9 +15,10 @@ async function main(): Promise<void> {
   const app = new App({ engine, scene, canvas, root: uiRoot, quality: qualitySystem })
   engine.runRenderLoop(() => scene.render())
   window.addEventListener("resize", () => engine.resize())
+  await qualitySystem.autoDetect(engine)
   setupEnvironment(scene, qualitySystem.settings)
+  applyGraphicsPolicy(scene, qualitySystem.settings)
   await app.init()
-  void qualitySystem.autoDetect(engine).then(() => applyGraphicsPolicy(scene, qualitySystem.settings))
 }
 
 main().catch((error: unknown) => {

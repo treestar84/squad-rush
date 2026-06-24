@@ -1,6 +1,33 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+
+# Environment
 .env
+.env.*
 *.local
+
+# Logs and QA captures
 logs/
-.vercel
+*.log
+npm-debug.log*
+
+# Local deployment state
+.vercel/
+
+# Local agent/tool state
+.claude/
+CLAUDE.md
+.omc/
+.omo/
+GOAL.md
+GOAL_PHASE2.md
+prd.md
+docs/
+
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/
