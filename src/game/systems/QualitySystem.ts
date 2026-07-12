@@ -132,7 +132,6 @@ export class QualitySystem {
     if (override !== null) {
       this.autoPortraitMode = false
       this.applyLevel(engine, override)
-      console.info(`[Quality] override -> ${override}`)
       return
     }
 
@@ -140,7 +139,6 @@ export class QualitySystem {
     const fps = await measureFPS(3000)
     this.level = this.capAutoLevelForViewport(this.detectLevel(fps))
     this.applyLevel(engine, this.level)
-    console.info(`[Quality] detected fps=${fps.toFixed(1)} -> ${this.level}`)
   }
 
   private applyLevel(engine: AbstractEngine, level: QualityLevel): void {

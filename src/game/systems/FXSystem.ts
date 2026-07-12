@@ -11,6 +11,10 @@ const DEATH_SMOKE_DRIFT_Y = 0.14
 const DEATH_SQUASH_DURATION = 0.16
 const DEATH_SQUASH_BASE_SCALE = 0.24
 const DEATH_SQUASH_LIFT = 0.06
+const MID_BOSS_DEATH_SMOKE_COUNT = 30
+const MID_BOSS_DEATH_RING_COUNT = 18
+const MID_BOSS_DEATH_SPARK_COUNT = 19
+const MID_BOSS_DEATH_RING_RADIUS = 1.18
 const GATE_BURST_PARTICLE_COUNT = 64
 const GATE_RING_PARTICLE_COUNT = 18
 const GATE_BURST_BASE_SCALE = 0.1
@@ -28,6 +32,9 @@ declare global {
       readonly lastGateBurstScale: number
       readonly lastGateParticleAlpha: number
       readonly lastGateParticleMaxScale: number
+      readonly lastMidBossDeathBurstCount?: number
+      readonly lastMidBossDeathBurstScale?: number
+      readonly lastMidBossDeathParticleMaxScale?: number
     }
   }
 }
@@ -52,6 +59,7 @@ export class FXSystem {
         fx.mesh.setEnabled(false)
         fx.life = 0
       },
+      Math.min(capacity, 64),
       capacity,
     )
   }
@@ -94,6 +102,50 @@ export class FXSystem {
         pos.z + Math.sin(angle) * (0.07 + (index % 2) * 0.035),
       )
       this.play("death", smokePos, DEATH_SMOKE_DURATION, (DEATH_SMOKE_BASE_SCALE + (index % 3) * DEATH_SMOKE_SCALE_STEP) * scale)
+    }
+  }
+
+  playMidBossDeathBurst(pos: Vector3, scale = 1): void {
+    this.play("chain", new Vector3(pos.x, pos.y + 0.5, pos.z), 0.38, 0.88 * scale)
+    this.play("chain", new Vector3(pos.x, pos.y + 0.36, pos.z), 0.32, 0.64 * scale)
+    this.play("chain", new Vector3(pos.x, pos.y + 0.24, pos.z), 0.26, 0.46 * scale)
+    for (let index = 0; index < MID_BOSS_DEATH_SMOKE_COUNT; index += 1) {
+      const angle = index * 2.399963
+      const radius = 0.2 + (index % 6) * 0.11
+      const smokePos = new Vector3(
+        pos.x + Math.cos(angle) * radius,
+        pos.y + 0.34 + (index % 5) * 0.13,
+        pos.z + Math.sin(angle) * radius * 0.68,
+      )
+      this.play("smoke", smokePos, 0.88, (0.27 + (index % 5) * 0.052) * scale)
+    }
+    for (let index = 0; index < MID_BOSS_DEATH_RING_COUNT; index += 1) {
+      const angle = (Math.PI * 2 * index) / MID_BOSS_DEATH_RING_COUNT
+      const ringPos = new Vector3(
+        pos.x + Math.cos(angle) * MID_BOSS_DEATH_RING_RADIUS,
+        pos.y + 0.34 + Math.sin(index * 1.9) * 0.08,
+        pos.z + Math.sin(angle) * MID_BOSS_DEATH_RING_RADIUS * 0.48,
+      )
+      this.play("death", ringPos, 0.5, (0.18 + (index % 3) * 0.035) * scale)
+    }
+    for (let index = 0; index < MID_BOSS_DEATH_SPARK_COUNT; index += 1) {
+      const angle = (Math.PI * 2 * index) / MID_BOSS_DEATH_SPARK_COUNT
+      const sparkPos = new Vector3(
+        pos.x + Math.cos(angle) * (0.34 + (index % 3) * 0.08),
+        pos.y + 0.38 + (index % 4) * 0.06,
+        pos.z + Math.sin(angle) * (0.22 + (index % 2) * 0.07),
+      )
+      this.play("hit", sparkPos, 0.24, (0.13 + (index % 4) * 0.026) * scale)
+    }
+    const previousDebug = window.__squadRushFxDebug
+    window.__squadRushFxDebug = {
+      lastGateBurstCount: previousDebug?.lastGateBurstCount ?? 0,
+      lastGateBurstScale: previousDebug?.lastGateBurstScale ?? 0,
+      lastGateParticleAlpha: previousDebug?.lastGateParticleAlpha ?? 0,
+      lastGateParticleMaxScale: previousDebug?.lastGateParticleMaxScale ?? 0,
+      lastMidBossDeathBurstCount: MID_BOSS_DEATH_SMOKE_COUNT + MID_BOSS_DEATH_RING_COUNT + MID_BOSS_DEATH_SPARK_COUNT + 3,
+      lastMidBossDeathBurstScale: MID_BOSS_DEATH_RING_RADIUS,
+      lastMidBossDeathParticleMaxScale: Math.max(0.27 + 4 * 0.052, 0.18 + 2 * 0.035, 0.13 + 3 * 0.026) * scale,
     }
   }
 
@@ -179,7 +231,12 @@ export class FXSystem {
   }
 
   update(dt: number): void {
-    for (const fx of this.pool.getActive()) {
+    const active = this.pool.getActive()
+    for (let index = active.length - 1; index >= 0; index -= 1) {
+      const fx = active[index]
+      if (fx === undefined) {
+        continue
+      }
       fx.life -= dt
       const age = 1 - Math.max(0, fx.life / fx.duration)
       fx.mesh.position.y += fx.velocityY * dt

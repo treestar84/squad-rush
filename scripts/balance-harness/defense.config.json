@@ -1,0 +1,216 @@
+{
+  "sampleTimesMs": [12000, 24000, 36000],
+  "cases": [
+    {
+      "mode": "defense",
+      "difficulty": "easy",
+      "window": "onboarding_crowd",
+      "route": "default",
+      "trials": 3,
+      "sampleTimesMs": [12000, 24000, 36000],
+      "query": { "quality": "high", "qa": "monsters", "qaNoDamage": "1" },
+      "targets": {
+        "activeMin": 120,
+        "activeMax": 360,
+        "killMin": 50,
+        "killMax": 150,
+        "nearestMax": 8,
+        "survivorMin": 4,
+        "growthMin": 1,
+        "visibleCoverageMin": 0.65
+      }
+    },
+    {
+      "mode": "defense",
+      "difficulty": "easy",
+      "window": "contested_pickup",
+      "route": "default",
+      "trials": 3,
+      "sampleTimesMs": [7000, 14000, 21000],
+      "query": { "quality": "high", "qa": "monsters", "qaNoDamage": "1", "qaStartZ": "115", "qaSpeed": "1.5" },
+      "targets": {
+        "activeMin": 120,
+        "activeMax": 360,
+        "killMin": 45,
+        "killMax": 180,
+        "nearestMax": 8,
+        "survivorMin": 4,
+        "growthMin": 1,
+        "visibleCoverageMin": 0.65
+      }
+    },
+    {
+      "mode": "defense",
+      "difficulty": "easy",
+      "window": "boss_jam",
+      "route": "default",
+      "trials": 3,
+      "sampleTimesMs": [7000, 14000, 21000],
+      "query": { "quality": "high", "qa": "monsters", "qaNoDamage": "1", "qaStartZ": "205", "qaSpeed": "1.5" },
+      "targets": {
+        "activeMin": 140,
+        "activeMax": 380,
+        "killMin": 45,
+        "killMax": 220,
+        "nearestMax": 9,
+        "survivorMin": 4,
+        "growthMin": 0,
+        "visibleCoverageMin": 0.65
+      }
+    },
+    {
+      "mode": "defense",
+      "difficulty": "easy",
+      "window": "recovery_burst",
+      "route": "default",
+      "trials": 3,
+      "sampleTimesMs": [7000, 14000, 21000],
+      "query": { "quality": "high", "qa": "monsters", "qaNoDamage": "1", "qaStartZ": "285", "qaSpeed": "1.5" },
+      "targets": {
+        "activeMin": 140,
+        "activeMax": 380,
+        "killMin": 35,
+        "killMax": 220,
+        "nearestMax": 9,
+        "survivorMin": 4,
+        "growthMin": 0,
+        "visibleCoverageMin": 0.65
+      }
+    },
+    {
+      "mode": "defense",
+      "difficulty": "easy",
+      "window": "final_squeeze",
+      "route": "default",
+      "trials": 3,
+      "sampleTimesMs": [7000, 14000, 21000],
+      "query": { "quality": "high", "qa": "monsters", "qaNoDamage": "1", "qaStartZ": "360", "qaSpeed": "1.25" },
+      "targets": {
+        "activeMin": 160,
+        "activeMax": 420,
+        "killMin": 30,
+        "killMax": 240,
+        "nearestMax": 10,
+        "survivorMin": 4,
+        "growthMin": 0,
+        "visibleCoverageMin": 0.65
+      }
+    },
+    {
+      "mode": "defense",
+      "difficulty": "medium",
+      "window": "onboarding_crowd",
+      "route": "default",
+      "trials": 3,
+      "sampleTimesMs": [12000, 24000, 36000],
+      "query": { "quality": "high", "qa": "monsters", "qaNoDamage": "1" },
+      "targets": {
+        "activeMin": 90,
+        "activeMax": 360,
+        "killMin": 32,
+        "killMax": 220,
+        "nearestMax": 10,
+        "survivorMin": 2,
+        "growthMin": 1,
+        "visibleCoverageMin": 0.65,
+        "openingActiveMax": 120
+      }
+    },
+    {
+      "mode": "defense",
+      "difficulty": "hard",
+      "window": "onboarding_crowd",
+      "route": "default",
+      "trials": 3,
+      "sampleTimesMs": [12000, 24000, 36000],
+      "query": { "quality": "high", "qa": "monsters", "qaNoDamage": "1" },
+      "targets": {
+        "activeMin": 90,
+        "activeMax": 360,
+        "killMin": 20,
+        "killMax": 180,
+        "nearestMax": 12,
+        "survivorMin": 1,
+        "growthMin": 1,
+        "visibleCoverageMin": 0.65,
+        "openingActiveMax": 130
+      }
+    },
+    {
+      "mode": "defense",
+      "difficulty": "easy",
+      "window": "onboarding_crowd",
+      "route": "military-heavy",
+      "trials": 3,
+      "sampleTimesMs": [12000, 24000, 36000],
+      "query": { "quality": "high", "qa": ["monsters", "defense-routes"], "qaNoDamage": "1", "qaSoldiers": "8" },
+      "targets": {
+        "activeMin": 120,
+        "activeMax": 360,
+        "killMin": 50,
+        "killMax": 180,
+        "nearestMax": 8,
+        "survivorMin": 4,
+        "growthMin": 0,
+        "visibleCoverageMin": 0.65
+      }
+    },
+    {
+      "mode": "defense",
+      "difficulty": "easy",
+      "window": "onboarding_crowd",
+      "route": "developer-heavy",
+      "trials": 3,
+      "sampleTimesMs": [12000, 24000, 36000],
+      "query": { "quality": "high", "qa": ["monsters", "defense-routes"], "qaNoDamage": "1", "qaSoldiers": "6" },
+      "targets": {
+        "activeMin": 120,
+        "activeMax": 360,
+        "killMin": 50,
+        "killMax": 180,
+        "nearestMax": 8,
+        "survivorMin": 4,
+        "growthMin": 0,
+        "visibleCoverageMin": 0.65
+      }
+    },
+    {
+      "mode": "defense",
+      "difficulty": "easy",
+      "window": "onboarding_crowd",
+      "route": "unemployed-volatile",
+      "trials": 3,
+      "sampleTimesMs": [12000, 24000, 36000],
+      "query": { "quality": "high", "qa": ["monsters", "defense-routes"], "qaNoDamage": "1", "qaSoldiers": "3" },
+      "targets": {
+        "activeMin": 120,
+        "activeMax": 360,
+        "killMin": 50,
+        "killMax": 180,
+        "nearestMax": 8,
+        "survivorMin": 3,
+        "growthMin": 0,
+        "visibleCoverageMin": 0.65
+      }
+    },
+    {
+      "mode": "defense",
+      "difficulty": "easy",
+      "window": "onboarding_crowd",
+      "route": "high-squad-stress",
+      "trials": 3,
+      "sampleTimesMs": [12000, 24000, 36000],
+      "query": { "quality": "high", "qa": "monsters", "qaNoDamage": "1", "qaSoldiers": "15", "qaPangyo": "8" },
+      "targets": {
+        "activeMin": 120,
+        "activeMax": 420,
+        "killMin": 60,
+        "killMax": 260,
+        "nearestMax": 8,
+        "survivorMin": 10,
+        "growthMin": 0,
+        "visibleCoverageMin": 0.65
+      }
+    }
+  ]
+}

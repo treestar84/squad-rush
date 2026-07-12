@@ -1,0 +1,33 @@
+# Local dependencies and build output
+node_modules/
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.vite/
+
+# Local logs and QA captures
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Documentation and agent state not required for Vercel runtime
+docs/
+scripts/
+*.md
+.claude/
+.omc/
+.omo/
+.codex/
+.debug-journal.md
+
+# Local deployment and editor state
+.vercel/
+.DS_Store
+.idea/
+.vscode/

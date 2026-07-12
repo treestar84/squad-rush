@@ -9,6 +9,8 @@ export class AudioSystem {
   private runGain: GainNode | null = null
   private lastShotAt = 0
   private lastHitAt = 0
+  private lastGunfireAt = 0
+  private lastEnemyFlurryAt = 0
 
   unlock(): void {
     if (this.context === null) {
@@ -63,6 +65,10 @@ export class AudioSystem {
     }
     this.lastShotAt = now
     this.samples.play("shot", { volumeScale: 0.66, rateOffset: Math.min(0.16, power * 0.025) })
+    if (now - this.lastGunfireAt >= 0.62) {
+      this.lastGunfireAt = now
+      this.samples.play("alliedGunfire", { volumeScale: 0.42, rateOffset: Math.min(0.12, power * 0.014) })
+    }
     this.playTone(760 + power * 90, 0.045, "square", 0.12)
     this.playNoise(0.035, 0.06, 900)
   }
@@ -80,6 +86,27 @@ export class AudioSystem {
 
   playChainKill(): void {
     this.samples.play("chainKill", { volumeScale: 0.86, rateOffset: 0.02 })
+  }
+
+  playEnemyFlurry(kills: number): void {
+    const now = this.now()
+    if (now - this.lastEnemyFlurryAt < 2.4) {
+      return
+    }
+    this.lastEnemyFlurryAt = now
+    this.samples.play("enemyFlurry", { volumeScale: Math.min(0.72, 0.28 + kills * 0.006), rateOffset: 0.01 })
+  }
+
+  playFinalPop(): void {
+    this.samples.play("finalPop", { volumeScale: 0.88, rateOffset: -0.02 })
+  }
+
+  playUiReveal(): void {
+    this.samples.play("uiReveal", { volumeScale: 0.82 })
+  }
+
+  playWeaponSpin(): void {
+    this.samples.play("weaponSpin", { volumeScale: 0.68, rateOffset: 0.02 })
   }
 
   playGate(): void {

@@ -9,7 +9,7 @@ import { clickStartButton } from "./lib/startGame.mjs"
 
 const root = resolve(".")
 const outputDir = resolve("logs/phase2-qa")
-const screenshotName = "environment-setpiece-desktop.png"
+const screenshotName = "environment-setpiece-mobile.png"
 const setpieceSource = readFileSync(resolve("src/game/EnvironmentSetpieces.ts"), "utf8")
 const designSource = readFileSync(resolve("DESIGN.md"), "utf8")
 
@@ -82,14 +82,14 @@ function stopPreview(preview) {
 }
 
 assertQa(setpieceSource.includes("side_service_deck"), "Service deck setpieces are missing.")
-assertQa(setpieceSource.includes("authored_side_cargo"), "Side cargo dressing is missing.")
+assertQa(!setpieceSource.includes("authored_side_cargo"), "Floor-attached side cargo boxes must stay disabled.")
 assertQa(setpieceSource.includes("__squadRushEnvironmentDebug"), "Environment debug state is missing.")
 assertQa(!setpieceSource.includes("combat_gantry_beam"), "Gate gantry beams must not reconnect the two choice gates.")
 assertQa(!setpieceSource.includes("authored_gate_frame"), "Authored gate frames must stay disabled around choice gates.")
 assertQa(designSource.includes("Environment setpiece QA"), "DESIGN.md must document environment setpiece QA.")
 
 const port = await findFreePort()
-const previewUrl = `http://127.0.0.1:${port}/?quality=high&qa=environment`
+const previewUrl = `http://127.0.0.1:${port}/?mode=run&quality=high&qa=environment`
 const preview = spawn(
   "npm",
   ["run", "preview", "--", "--host", "127.0.0.1", "--port", String(port)],
@@ -101,7 +101,7 @@ try {
   await waitForPreview(previewUrl)
 
   const browser = await chromium.launch()
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
   const consoleErrors = []
   const pageErrors = []
   page.on("console", (msg) => {
@@ -118,7 +118,8 @@ try {
     return debug !== undefined &&
       debug.serviceDecks >= 14 &&
       debug.gantries === 0 &&
-      debug.cargoStacks >= 20
+      debug.cargoStacks === 0 &&
+      debug.authoredRoadSegments === 0
   }, null, { timeout: 36000 })
   await page.waitForTimeout(1200)
 
@@ -135,7 +136,8 @@ try {
   assertQa(consoleErrors.length === 0, `Console errors detected: ${consoleErrors.join(" | ")}`)
   assertQa(pageErrors.length === 0, `Page errors detected: ${pageErrors.join(" | ")}`)
   assertQa(runtime.scrollOverflow <= 0, "Environment setpiece capture has horizontal overflow.")
-  assertQa(runtime.environment?.authoredRoadSegments === 18, "Authored road side modules did not load.")
+  assertQa(runtime.environment?.authoredRoadSegments === 0, "Floor-attached authored road side modules must stay disabled.")
+  assertQa(runtime.environment?.cargoStacks === 0, "Floor-attached side cargo boxes must stay disabled.")
   assertQa(runtime.environment?.authoredGateFrames === 0, "Authored gate frame modules must not reconnect the choice gates.")
   console.info(JSON.stringify({ screenshotPath, runtime }, null, 2))
 } finally {

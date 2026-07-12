@@ -13,12 +13,19 @@ const minRuntimeFps = 24
 const maxMobileOverflowPx = 0
 const maxMobileCommandHeight = 56
 const requiredAudioCues = [
-  "shot",
-  "hit",
-  "gate",
-  "pickup",
-  "squad-add",
+  "run-footsteps",
 ]
+const requiredBgmCues = [
+  "bgm-run-1",
+  "bgm-run-2",
+  "bgm-run-3",
+  "bgm-run-4",
+  "bgm-run-5",
+]
+
+function loadedAudioCue(assets, cue) {
+  return assets.has(`${cue}.mp3`) || assets.has(`${cue}.ogg`)
+}
 
 function findFreePort() {
   return new Promise((resolvePort, reject) => {
@@ -95,7 +102,7 @@ async function assertScreenshot(path) {
 }
 
 const port = await findFreePort()
-const previewUrl = `http://127.0.0.1:${port}/`
+const previewUrl = `http://127.0.0.1:${port}/?qaNoDamage=1`
 const preview = spawn(
   "npm",
   ["run", "preview", "--", "--host", "127.0.0.1", "--port", String(port)],
@@ -162,8 +169,12 @@ try {
   assertRuntime(parseNumber(mobileStats.fps) >= minRuntimeFps, `Mobile FPS text is below ${minRuntimeFps}.`)
   assertRuntime(parseNumber(desktopStats.fps) >= minRuntimeFps, `Desktop FPS text is below ${minRuntimeFps}.`)
   for (const cue of requiredAudioCues) {
-    assertRuntime(loadedAudioAssets.has(`${cue}.mp3`), `Chrome runtime did not preload ${cue}.mp3.`)
+    assertRuntime(loadedAudioCue(loadedAudioAssets, cue), `Chrome runtime did not load ${cue}.mp3 or ${cue}.ogg on demand.`)
   }
+  assertRuntime(
+    requiredBgmCues.some((cue) => loadedAudioCue(loadedAudioAssets, cue)),
+    "Chrome runtime did not load any optimized BGM track on demand.",
+  )
 
   console.info(JSON.stringify({ mobilePath, desktopPath, mobileStats, desktopStats, loadedAudioAssets: [...loadedAudioAssets].sort() }, null, 2))
 } finally {

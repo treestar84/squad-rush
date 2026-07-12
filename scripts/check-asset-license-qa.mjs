@@ -3,6 +3,11 @@ import { resolve } from "node:path"
 
 const licensePath = resolve("public/assets/LICENSES.md")
 const loaderPath = resolve("src/game/utils/assetLoader.ts")
+const environmentModePath = resolve("src/game/EnvironmentMode.ts")
+const attackBuildingPath = resolve("src/game/systems/AttackBuildingSystem.ts")
+const gateVisualFactoryPath = resolve("src/game/systems/GateVisualFactory.ts")
+const defenseCastlePath = resolve("src/game/systems/DefenseCastleEnvironmentSystem.ts")
+const defenseCastleKitPath = resolve("src/game/systems/DefenseCastleEnvironmentKit.ts")
 
 const runtimeAssets = [
   { path: "public/assets/models/soldier.gltf", loaderName: "soldier.gltf", format: "gltf", minBytes: 1000000, minMeshes: 8, minAnimations: 4 },
@@ -10,6 +15,16 @@ const runtimeAssets = [
   { path: "public/assets/models/monster_basic.glb", loaderName: "monster_basic.glb", format: "glb", minBytes: 100000 },
   { path: "public/assets/models/monster_tank.glb", loaderName: "monster_tank.glb", format: "glb", minBytes: 8000 },
   { path: "public/assets/models/yeti.gltf", loaderName: "yeti.gltf", format: "gltf", minBytes: 100000, minMeshes: 1, minAnimations: 4 },
+  { path: "public/assets/models/squad/pangyo_runner.glb", loaderName: "squad/pangyo_runner.glb", format: "glb", minBytes: 100000 },
+  { path: "public/assets/models/pickups/pangyo_man.glb", loaderName: "pickups/pangyo_man.glb", format: "glb", minBytes: 100000 },
+  { path: "public/assets/models/environment/attack_buildings/nc.glb", loaderName: "environment/attack_buildings/nc.glb", format: "glb", minBytes: 1000000 },
+  { path: "public/assets/models/environment/attack_buildings/new_office.glb", loaderName: "environment/attack_buildings/new_office.glb", format: "glb", minBytes: 1000000 },
+  { path: "public/assets/models/environment/attack_buildings/alparium.glb", loaderName: "environment/attack_buildings/alparium.glb", format: "glb", minBytes: 1000000 },
+  { path: "public/assets/models/environment/attack_buildings/avenue.glb", loaderName: "environment/attack_buildings/avenue.glb", format: "glb", minBytes: 1000000 },
+  { path: "public/assets/models/environment/defense/portal.glb", loaderName: "environment/defense/portal.glb", format: "glb", minBytes: 1000000 },
+  { path: "public/assets/textures/defense_cobblestone.webp", loaderName: "/assets/textures/defense_cobblestone.webp", format: "webp", minBytes: 10000 },
+  { path: "public/assets/textures/attack_dirt_ground.webp", loaderName: "/assets/textures/attack_dirt_ground.webp", format: "webp", minBytes: 10000 },
+  { path: "public/assets/textures/attack_dirt_ground_hard.webp", loaderName: "/assets/textures/attack_dirt_ground_hard.webp", format: "webp", minBytes: 10000 },
   { path: "public/assets/models/environment/road_segment.glb", loaderName: "environment/road_segment.glb", format: "glb", minBytes: 8000 },
   { path: "public/assets/models/environment/gate_frame.glb", loaderName: "environment/gate_frame.glb", format: "glb", minBytes: 8000 },
 ]
@@ -46,6 +61,12 @@ async function assertGlb(asset) {
   assertAsset(bytes.readUInt32LE(4) === 2, `${asset.path} is not GLB version 2.`)
 }
 
+async function assertWebp(asset) {
+  const bytes = await readFile(asset.path)
+  assertAsset(bytes.subarray(0, 4).toString("ascii") === "RIFF", `${asset.path} is not a RIFF container.`)
+  assertAsset(bytes.subarray(8, 12).toString("ascii") === "WEBP", `${asset.path} is not a WebP file.`)
+}
+
 function assertLicenseEntry(licenseText, path) {
   const start = licenseText.indexOf(`### \`${path}\``)
   assertAsset(start >= 0, `${path} is missing from public/assets/LICENSES.md.`)
@@ -60,17 +81,29 @@ function assertLicenseEntry(licenseText, path) {
 async function assertRuntimeAsset(asset, licenseText, loaderText) {
   const file = await stat(asset.path)
   assertAsset(file.size >= asset.minBytes, `${asset.path} is smaller than expected.`)
-  assertAsset(loaderText.includes(`"${asset.loaderName}"`), `${asset.loaderName} is not loaded by assetLoader.ts.`)
+  assertAsset(loaderText.includes(`"${asset.loaderName}"`), `${asset.loaderName} is not loaded by runtime asset code.`)
   assertLicenseEntry(licenseText, asset.path)
   if (asset.format === "gltf") {
     await assertGltf(asset)
+    return
+  }
+  if (asset.format === "webp") {
+    await assertWebp(asset)
     return
   }
   await assertGlb(asset)
 }
 
 const licenseText = await readFile(licensePath, "utf8")
-const loaderText = await readFile(loaderPath, "utf8")
+const loaderText = [
+  await readFile(loaderPath, "utf8"),
+  await readFile(environmentModePath, "utf8"),
+  await readFile(attackBuildingPath, "utf8"),
+  await readFile(gateVisualFactoryPath, "utf8"),
+  await readFile(defenseCastlePath, "utf8"),
+  await readFile(defenseCastleKitPath, "utf8"),
+].join("\n")
+assertAsset(!loaderText.includes("/assets/textures/gate_portal_"), "Illustrated gate portal textures must not be part of runtime gate visuals.")
 const results = []
 for (const asset of runtimeAssets) {
   await assertRuntimeAsset(asset, licenseText, loaderText)

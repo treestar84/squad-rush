@@ -1,25 +1,40 @@
 import { Color3, Mesh, PBRMaterial, StandardMaterial } from "@babylonjs/core"
+import { UNIT_TYPES, type UnitType } from "../data/squadRosterData"
+import { applySoldierHeadStyle, type SoldierHeadStyle } from "./SoldierVisualKit"
 
-const SOLDIER_UPGRADE_COLORS: readonly Color3[] = [
-  new Color3(0.12, 0.74, 0.26),
-  new Color3(0.1, 0.52, 1),
-  new Color3(0.58, 0.24, 1),
-  new Color3(1, 0.86, 0.18),
-  new Color3(1, 0.42, 0.08),
-] as const
+export function applySoldierUnitVisual(mesh: Mesh, unit: UnitType, cssColor: string): void {
+  applySoldierHeadStyle(mesh, getHeadStyle(unit))
+  applySoldierUnitColor(mesh, Color3.FromHexString(cssColor))
+}
 
-export function applySoldierUpgradeVisual(mesh: Mesh, tier: number): void {
-  const color = getSoldierUpgradeColor(tier)
+function getHeadStyle(unit: UnitType): SoldierHeadStyle {
+  switch (unit) {
+    case UNIT_TYPES.soldier:
+      return "greenHelmet"
+    case UNIT_TYPES.officer:
+      return "purpleHelmet"
+    case UNIT_TYPES.general:
+      return "redHelmet"
+    case UNIT_TYPES.seniorDeveloper:
+    case UNIT_TYPES.gamer:
+      return "redHelmet"
+    case UNIT_TYPES.pangyo:
+    case UNIT_TYPES.unemployed:
+    case UNIT_TYPES.developer:
+    case UNIT_TYPES.qa:
+    case UNIT_TYPES.entrepreneur:
+    case UNIT_TYPES.ceo:
+    case UNIT_TYPES.ai:
+      return "blackHair"
+  }
+}
+
+function applySoldierUnitColor(mesh: Mesh, color: Color3): void {
   for (const child of mesh.getChildMeshes(false)) {
     if (child.name.includes("soldier_role") || child.name.includes("soldier_muzzle")) {
       tintMaterial(child.material, color)
     }
   }
-}
-
-function getSoldierUpgradeColor(tier: number): Color3 {
-  const clampedTier = Math.max(0, Math.min(SOLDIER_UPGRADE_COLORS.length - 1, Math.floor(tier)))
-  return SOLDIER_UPGRADE_COLORS[clampedTier] ?? SOLDIER_UPGRADE_COLORS[0] ?? Color3.White()
 }
 
 function tintMaterial(material: Mesh["material"], color: Color3): void {

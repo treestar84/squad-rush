@@ -1,7 +1,9 @@
 import type { AbstractEngine, Scene } from "@babylonjs/core"
+import { getCampaignBonuses, readCampaignProgress } from "../game/CampaignProgress"
 import { Game } from "../game/Game"
 import { StartHeroPreview } from "../game/StartHeroPreview"
 import { DEFAULT_DIFFICULTY, parseDifficulty, type DifficultyProfile } from "../game/data/difficultyData"
+import { DEFAULT_GAME_MODE, parseGameMode, type GameModeProfile } from "../game/data/gameModeData"
 import type { QualitySystem } from "../game/systems/QualitySystem"
 import { loadGameAssets, type AssetManifest } from "../game/utils/assetLoader"
 import { LoadingScreen } from "../ui/LoadingScreen"
@@ -33,6 +35,7 @@ export class App {
   private game: Game | null = null
   private startHero: StartHeroPreview | null = null
   private selectedDifficulty: DifficultyProfile = DEFAULT_DIFFICULTY
+  private selectedGameMode: GameModeProfile = DEFAULT_GAME_MODE
   private gameStarted = false
   private countdownRunning = false
   assets?: AssetManifest
@@ -42,13 +45,21 @@ export class App {
     this.countdown = new PreGameCountdown(deps.root)
     this.startScreen = new StartScreen(deps.root)
     this.startScreen.hide({ immediate: true })
-    this.selectedDifficulty = parseDifficulty(new URLSearchParams(window.location.search).get("difficulty"))
-    this.startScreen.setDifficulty(this.selectedDifficulty)
+    const query = new URLSearchParams(window.location.search)
+    const difficultyQuery = query.get("difficulty")
+    const modeQuery = query.get("mode")
+    this.selectedDifficulty = parseDifficulty(difficultyQuery)
+    this.selectedGameMode = parseGameMode(modeQuery)
+    this.startScreen.setDifficulty(this.selectedDifficulty, { revealScenario: difficultyQuery !== null })
+    this.startScreen.setGameMode(this.selectedGameMode, { revealDifficulty: modeQuery !== null })
     this.startScreen.onDifficultyChange = (difficulty) => {
       this.selectedDifficulty = difficulty
     }
-    this.startScreen.onStart = (difficulty) => {
-      void this.beginCountdown(difficulty)
+    this.startScreen.onGameModeChange = (mode) => {
+      this.selectedGameMode = mode
+    }
+    this.startScreen.onStart = (options) => {
+      void this.beginCountdown(options.difficulty, options.mode)
     }
   }
 
@@ -77,7 +88,7 @@ export class App {
       this.startScreen.show()
       window.__squadRushQaStarted = false
       window.__squadRushQaStart = () => {
-        void this.beginCountdown(this.selectedDifficulty)
+        void this.beginCountdown(this.selectedDifficulty, this.selectedGameMode)
       }
       return
     }
@@ -97,11 +108,12 @@ export class App {
     return this.state
   }
 
-  private async beginCountdown(difficulty: DifficultyProfile): Promise<void> {
+  private async beginCountdown(difficulty: DifficultyProfile, mode: GameModeProfile): Promise<void> {
     if (this.countdownRunning || this.gameStarted) {
       return
     }
     this.selectedDifficulty = difficulty
+    this.selectedGameMode = mode
     this.prepareGame()
     this.countdownRunning = true
     this.state = "countdown"
@@ -130,6 +142,8 @@ export class App {
       assets: this.assets,
       quality: this.deps.quality,
       difficulty: this.selectedDifficulty,
+      mode: this.selectedGameMode,
+      campaignBonuses: getCampaignBonuses(readCampaignProgress()),
     })
     this.game.onGameOver = () => {
       this.state = "result"

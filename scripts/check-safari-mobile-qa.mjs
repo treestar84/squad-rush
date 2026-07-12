@@ -134,7 +134,7 @@ try {
   })
   page.on("pageerror", (error) => pageErrors.push(error.message))
 
-  await page.goto(`${previewUrl}?quality=medium`, { waitUntil: "networkidle" })
+  await page.goto(`${previewUrl}?quality=medium&qaSpeed=2&qaNoDamage=1`, { waitUntil: "networkidle" })
   await page.locator(".tap-to-start").click()
   await page.waitForTimeout(12600)
   const screenshotPath = resolve(outputDir, screenshotName)

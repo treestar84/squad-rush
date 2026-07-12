@@ -28,16 +28,45 @@ import {
 } from "./ProjectileVisuals"
 import { configureBulletStyle, configureMuzzleFlash } from "./ProjectileStyling"
 
+const PROJECTILE_PREWARM_CAPACITY = 96
+const FLASH_PREWARM_CAPACITY = 72
+
+export type ProjectileSystemOptions = {
+  readonly compactVisuals?: boolean
+  readonly effectStride?: number
+  readonly prewarmCapacity?: number
+}
+
 export class ProjectileSystem {
   private readonly pool: ObjectPool<Trail>
   private readonly muzzlePool: ObjectPool<MuzzleFlash>
   private readonly impactPool: ObjectPool<ImpactFlash>
   private readonly debugEnabled = window.location.search.includes("qa=projectile")
+  private readonly compactVisuals: boolean
+  private readonly effectStride: number
   private shotsCreated = 0
+  private impactsCreated = 0
 
-  constructor(private readonly scene: Scene, capacity: number) {
+  constructor(
+    private readonly scene: Scene,
+    capacity: number,
+    options: ProjectileSystemOptions = {},
+  ) {
+    this.compactVisuals = options.compactVisuals === true
+    this.effectStride = Math.max(1, Math.floor(options.effectStride ?? 1))
+    const trailPrewarm = Math.min(capacity, options.prewarmCapacity ?? PROJECTILE_PREWARM_CAPACITY)
+    const flashPrewarm = Math.min(capacity, this.compactVisuals ? 16 : FLASH_PREWARM_CAPACITY)
     this.pool = new ObjectPool<Trail>(
-      (index) => createTrail(this.scene, index),
+      (index) => {
+        const trail = createTrail(this.scene, index)
+        if (this.compactVisuals) {
+          trail.wakeNear.setEnabled(false)
+          trail.wakeFar.setEnabled(false)
+          trail.tip.setEnabled(false)
+          trail.flash.setEnabled(false)
+        }
+        return trail
+      },
       (trail) => {
         trail.root.setEnabled(false)
         trail.root.position.set(0, 0, 0)
@@ -56,8 +85,10 @@ export class ProjectileSystem {
         trail.impactY = 0
         trail.impactZ = 0
         trail.impactTriggered = false
+        trail.stopAtImpact = false
         trail.onImpact = null
       },
+      trailPrewarm,
       capacity,
     )
     this.muzzlePool = new ObjectPool<MuzzleFlash>(
@@ -66,6 +97,7 @@ export class ProjectileSystem {
         flash.mesh.setEnabled(false)
         flash.life = 0
       },
+      flashPrewarm,
       capacity,
     )
     this.impactPool = new ObjectPool<ImpactFlash>(
@@ -79,11 +111,20 @@ export class ProjectileSystem {
         flash.ring.scaling.set(1, 1, 1)
         flash.life = 0
       },
+      flashPrewarm,
       capacity,
     )
   }
 
-  addBullet(from: Vector3, to: Vector3, speed: number, style: BulletStyle, onImpact: () => void, impactAt = to): boolean {
+  addBullet(
+    from: Vector3,
+    to: Vector3,
+    speed: number,
+    style: BulletStyle,
+    onImpact: () => void,
+    impactAt = to,
+    stopAtImpact = false,
+  ): boolean {
     const trail = this.pool.get()
     if (trail === null) {
       return false
@@ -103,18 +144,24 @@ export class ProjectileSystem {
     trail.root.rotation.x = -Math.atan2(dy, Math.hypot(dx, dz))
     trail.streak.scaling.z = metrics.visualLength
     trail.streak.position.z = -metrics.visualLength * 0.48
-    trail.wakeNear.scaling.setAll(1)
-    trail.wakeFar.scaling.setAll(1)
-    trail.wakeNear.position.z = -metrics.visualLength * BULLET_WAKE_NEAR_OFFSET_RATIO
-    trail.wakeFar.position.z = -metrics.visualLength * BULLET_WAKE_FAR_OFFSET_RATIO
+    if (!this.compactVisuals) {
+      trail.wakeNear.scaling.setAll(1)
+      trail.wakeFar.scaling.setAll(1)
+      trail.wakeNear.position.z = -metrics.visualLength * BULLET_WAKE_NEAR_OFFSET_RATIO
+      trail.wakeFar.position.z = -metrics.visualLength * BULLET_WAKE_FAR_OFFSET_RATIO
+    }
     trail.slug.position.z = BULLET_FRONT_GLOW_OFFSET * 0.58
     trail.slug.scaling.setAll(1)
     trail.core.position.z = 0
-    trail.tip.position.z = BULLET_FRONT_GLOW_OFFSET
-    trail.flash.position.z = BULLET_FRONT_GLOW_OFFSET
+    if (!this.compactVisuals) {
+      trail.tip.position.z = BULLET_FRONT_GLOW_OFFSET
+      trail.flash.position.z = BULLET_FRONT_GLOW_OFFSET
+    }
     trail.core.scaling.setAll(1)
-    trail.tip.scaling.setAll(1)
-    trail.flash.scaling.setAll(1)
+    if (!this.compactVisuals) {
+      trail.tip.scaling.setAll(1)
+      trail.flash.scaling.setAll(1)
+    }
     trail.travelDistance = length
     const impactDx = impactAt.x - from.x
     const impactDy = impactAt.y - from.y
@@ -131,23 +178,40 @@ export class ProjectileSystem {
     trail.impactY = impactAt.y
     trail.impactZ = impactAt.z
     trail.impactTriggered = false
+    trail.stopAtImpact = stopAtImpact
     trail.onImpact = onImpact
     configureBulletStyle(trail, style)
-    this.playMuzzleFlash(from, style)
+    this.shotsCreated += 1
+    if (this.shotsCreated % this.effectStride === 0) {
+      this.playMuzzleFlash(from, style)
+    }
     setMeshAlpha(trail.streak, BULLET_TRAIL_ALPHA)
-    setMeshAlpha(trail.wakeNear, BULLET_WAKE_ALPHA)
-    setMeshAlpha(trail.wakeFar, BULLET_WAKE_ALPHA * 0.74)
+    if (!this.compactVisuals) {
+      setMeshAlpha(trail.wakeNear, BULLET_WAKE_ALPHA)
+      setMeshAlpha(trail.wakeFar, BULLET_WAKE_ALPHA * 0.74)
+    }
     setMeshAlpha(trail.slug, 1)
     setMeshAlpha(trail.core, 1)
-    setMeshAlpha(trail.tip, 1)
-    setMeshAlpha(trail.flash, 0.32)
+    if (!this.compactVisuals) {
+      setMeshAlpha(trail.tip, 1)
+      setMeshAlpha(trail.flash, 0.32)
+    }
     trail.root.setEnabled(true)
-    this.shotsCreated += 1
     return true
   }
 
   update(dt: number): void {
-    for (const trail of this.pool.getActive()) {
+    if (dt <= 0) {
+      publishProjectileDebug(this.debugEnabled, this.pool.getActive(), this.shotsCreated)
+      return
+    }
+
+    const activeTrails = this.pool.getActive()
+    for (let index = activeTrails.length - 1; index >= 0; index -= 1) {
+      const trail = activeTrails[index]
+      if (trail === undefined) {
+        continue
+      }
       const stepX = trail.velocityX * dt
       const stepY = trail.velocityY * dt
       const stepZ = trail.velocityZ * dt
@@ -157,7 +221,7 @@ export class ProjectileSystem {
         continue
       }
 
-      const releaseDistance = trail.impactDistance + trail.tailClearDistance
+      const releaseDistance = trail.impactDistance + (trail.stopAtImpact ? 0 : trail.tailClearDistance)
       const remainingDistance = Math.max(0, releaseDistance - trail.traveled)
       const clampedDistance = Math.min(stepDistance, remainingDistance)
       const stepRatio = clampedDistance / stepDistance
@@ -168,7 +232,10 @@ export class ProjectileSystem {
       trail.life -= dt
       if (!trail.impactTriggered && trail.traveled >= trail.impactDistance) {
         trail.impactTriggered = true
-        this.playImpactFlash(trail)
+        this.impactsCreated += 1
+        if (this.impactsCreated % this.effectStride === 0) {
+          this.playImpactFlash(trail)
+        }
         trail.onImpact?.()
         trail.onImpact = null
       }
@@ -188,29 +255,42 @@ export class ProjectileSystem {
       const fade = (1 - progress * 0.06) * (1 - tailProgress * 0.28)
       trail.root.scaling.set(1 + progress * 0.08, 1 + progress * 0.08, 1)
       trail.slug.scaling.setAll(1 + progress * 0.05)
-      trail.tip.scaling.setAll(1 + progress * 0.18)
-      trail.flash.scaling.setAll(1 + progress * 0.24)
+      if (!this.compactVisuals) {
+        trail.tip.scaling.setAll(1 + progress * 0.18)
+        trail.flash.scaling.setAll(1 + progress * 0.24)
+      }
       trail.streak.scaling.x = Math.max(0.58, 1 - progress * 0.1)
       trail.streak.scaling.y = Math.max(0.58, 1 - progress * 0.1)
-      trail.wakeNear.scaling.setAll(1 + progress * 0.08)
-      trail.wakeFar.scaling.setAll(1 + progress * 0.05)
+      if (!this.compactVisuals) {
+        trail.wakeNear.scaling.setAll(1 + progress * 0.08)
+        trail.wakeFar.scaling.setAll(1 + progress * 0.05)
+      }
       setMeshAlpha(trail.streak, Math.max(BULLET_TRAIL_MIN_ALPHA * (1 - tailProgress * 0.72), fade * BULLET_TRAIL_ALPHA))
-      setMeshAlpha(trail.wakeNear, Math.max(BULLET_WAKE_MIN_ALPHA * (1 - tailProgress), fade * BULLET_WAKE_ALPHA))
-      setMeshAlpha(trail.wakeFar, Math.max(BULLET_WAKE_MIN_ALPHA * (1 - tailProgress), fade * BULLET_WAKE_ALPHA * 0.74))
+      if (!this.compactVisuals) {
+        setMeshAlpha(trail.wakeNear, Math.max(BULLET_WAKE_MIN_ALPHA * (1 - tailProgress), fade * BULLET_WAKE_ALPHA))
+        setMeshAlpha(trail.wakeFar, Math.max(BULLET_WAKE_MIN_ALPHA * (1 - tailProgress), fade * BULLET_WAKE_ALPHA * 0.74))
+      }
       setMeshAlpha(trail.slug, Math.max(0, Math.max(BULLET_CORE_MIN_ALPHA * (1 - tailProgress * 0.72), fade) * impactHeadFade))
       setMeshAlpha(trail.core, Math.max(0, Math.max(BULLET_CORE_MIN_ALPHA * (1 - tailProgress * 0.78), fade) * impactHeadFade))
-      setMeshAlpha(trail.tip, Math.max(0, Math.max(BULLET_CORE_MIN_ALPHA * (1 - tailProgress * 0.78), fade) * impactHeadFade))
-      setMeshAlpha(
-        trail.flash,
-        Math.max(
-          0,
-          Math.max(BULLET_FLASH_MIN_ALPHA * (1 - tailProgress * 0.56), 0.32 - progress * 0.04 - tailProgress * 0.12) *
-            impactHeadFade,
-        ),
-      )
+      if (!this.compactVisuals) {
+        setMeshAlpha(trail.tip, Math.max(0, Math.max(BULLET_CORE_MIN_ALPHA * (1 - tailProgress * 0.78), fade) * impactHeadFade))
+        setMeshAlpha(
+          trail.flash,
+          Math.max(
+            0,
+            Math.max(BULLET_FLASH_MIN_ALPHA * (1 - tailProgress * 0.56), 0.32 - progress * 0.04 - tailProgress * 0.12) *
+              impactHeadFade,
+          ),
+        )
+      }
     }
 
-    for (const muzzle of this.muzzlePool.getActive()) {
+    const activeMuzzles = this.muzzlePool.getActive()
+    for (let index = activeMuzzles.length - 1; index >= 0; index -= 1) {
+      const muzzle = activeMuzzles[index]
+      if (muzzle === undefined) {
+        continue
+      }
       muzzle.life -= dt
       const age = 1 - Math.max(0, muzzle.life / muzzle.duration)
       muzzle.mesh.scaling.setAll(muzzle.baseScale * (1.2 + age * 1.9))
@@ -220,7 +300,12 @@ export class ProjectileSystem {
       }
     }
 
-    for (const impact of this.impactPool.getActive()) {
+    const activeImpacts = this.impactPool.getActive()
+    for (let index = activeImpacts.length - 1; index >= 0; index -= 1) {
+      const impact = activeImpacts[index]
+      if (impact === undefined) {
+        continue
+      }
       impact.life -= dt
       const age = 1 - Math.max(0, impact.life / impact.duration)
       impact.core.scaling.setAll(impact.baseScale * (1.4 + age * 1.4))

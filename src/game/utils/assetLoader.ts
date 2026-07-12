@@ -17,6 +17,8 @@ export type GltfAsset = {
 
 export type AssetManifest = {
   readonly soldierAsset: GltfAsset
+  readonly pangyoRunnerAsset: GltfAsset
+  readonly pangyoPickupAsset: GltfAsset
   readonly ghostAsset: GltfAsset
   readonly monsterDoguriAsset: GltfAsset
   readonly monsterFastAsset: GltfAsset
@@ -49,7 +51,7 @@ function loaderOptions(config: GltfLoadConfig): LoadAssetContainerOptions | unde
   return { pluginOptions: { gltf: { skipMaterials: true } } }
 }
 
-async function loadGltfAsset(config: GltfLoadConfig): Promise<GltfAsset> {
+export async function loadGltfAsset(config: GltfLoadConfig): Promise<GltfAsset> {
   try {
     const container = await LoadAssetContainerAsync(`/assets/models/${config.filename}`, config.scene, loaderOptions(config))
     container.addAllToScene()
@@ -137,6 +139,16 @@ export async function loadGameAssets(
       onProgress(35)
       return asset
     })
+  const pangyoRunnerAsset = loadGltfAsset({ scene, filename: "squad/pangyo_runner.glb", templateName: "template_pangyo_runner" })
+    .then((asset) => {
+      onProgress(42)
+      return asset
+    })
+  const pangyoPickupAsset = loadGltfAsset({ scene, filename: "pickups/pangyo_man.glb", templateName: "template_pangyo_pickup" })
+    .then((asset) => {
+      onProgress(48)
+      return asset
+    })
   const ghostAsset = loadGltfAsset({ scene, filename: "ghost.gltf", templateName: "template_ghost" })
     .then((asset) => {
       onProgress(58)
@@ -180,9 +192,10 @@ export async function loadGameAssets(
     onProgress(96)
     return asset
   })
-
   const [
     loadedSoldierAsset,
+    loadedPangyoRunnerAsset,
+    loadedPangyoPickupAsset,
     loadedGhostAsset,
     loadedMonsterDoguriAsset,
     loadedMonsterFastAsset,
@@ -192,6 +205,8 @@ export async function loadGameAssets(
     loadedGateFrameAsset,
   ] = await Promise.all([
     soldierAsset,
+    pangyoRunnerAsset,
+    pangyoPickupAsset,
     ghostAsset,
     monsterDoguriAsset,
     monsterFastAsset,
@@ -203,6 +218,8 @@ export async function loadGameAssets(
   onProgress(100)
   return {
     soldierAsset: loadedSoldierAsset,
+    pangyoRunnerAsset: loadedPangyoRunnerAsset,
+    pangyoPickupAsset: loadedPangyoPickupAsset,
     ghostAsset: loadedGhostAsset,
     monsterDoguriAsset: loadedMonsterDoguriAsset,
     monsterFastAsset: loadedMonsterFastAsset,

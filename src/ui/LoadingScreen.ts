@@ -10,8 +10,8 @@ export class LoadingScreen {
     this.el.setAttribute("aria-live", "polite")
     this.el.innerHTML = `
       <div class="loading-inner">
-        <div class="loading-kicker">MISSION BOOT</div>
-        <div class="loading-logo">바로 Go 스쿼드</div>
+        <img class="loading-logo" src="/assets/ui/start-title-logo.png" alt="바로 Go 스쿼드" width="1600" height="597" decoding="async" fetchpriority="high" />
+        <p class="loading-message">판교에 포탈이 열리고 몬스터가 쏟아졌다. 국가비상사태가 선포되자 병력과 판교 직장인들이 첫 방어선을 세운다.</p>
         <div class="loading-stage" data-role="loading-stage">Preparing runway</div>
         <div class="loading-bar-wrap" role="progressbar" aria-label="Loading game assets" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <div class="loading-bar"></div>

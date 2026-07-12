@@ -8,6 +8,13 @@ type ShootingHitDebugState = {
   readonly missedNormalImpacts: number
   readonly staleNormalImpacts: number
   readonly multiDamageImpacts: number
+  readonly tankShots: number
+  readonly tankImpacts: number
+  readonly tankKills: number
+  readonly tankShotsWhileReserved: number
+  readonly maxTankConcurrentReservations: number
+  readonly maxTankProjectileHitRadius: number
+  readonly maxTankProjectileHitHalfDepth: number
   readonly reservedTargets: number
   readonly minNormalHitRadius: number
   readonly maxNormalHitRadius: number
@@ -43,6 +50,13 @@ export class ShootingHitDebug {
   private missedNormalImpacts = 0
   private staleNormalImpacts = 0
   private multiDamageImpacts = 0
+  private tankShots = 0
+  private tankImpacts = 0
+  private tankKills = 0
+  private tankShotsWhileReserved = 0
+  private maxTankConcurrentReservations = 0
+  private maxTankProjectileHitRadius = 0
+  private maxTankProjectileHitHalfDepth = 0
   private minNormalHitRadius = Number.POSITIVE_INFINITY
   private maxNormalHitRadius = 0
   private minNormalHitHalfDepth = Number.POSITIVE_INFINITY
@@ -59,11 +73,23 @@ export class ShootingHitDebug {
       this.maxNormalHitHalfDepth = Math.max(this.maxNormalHitHalfDepth, record.target.hitHalfDepth)
       this.minNormalImpactInset = Math.min(this.minNormalImpactInset, record.impactInset)
       this.maxNormalImpactInset = Math.max(this.maxNormalImpactInset, record.impactInset)
+      return
+    }
+    if (record.target.config?.behavior === MONSTER_BEHAVIORS.tank) {
+      this.tankShots += 1
+      this.maxTankProjectileHitRadius = Math.max(this.maxTankProjectileHitRadius, record.target.projectileHitRadius)
+      this.maxTankProjectileHitHalfDepth = Math.max(this.maxTankProjectileHitHalfDepth, record.target.projectileHitHalfDepth)
     }
   }
 
   recordImpact(record: ImpactRecord): void {
     if (!this.isNormalBehavior(record.behavior)) {
+      if (record.behavior === MONSTER_BEHAVIORS.tank) {
+        this.tankImpacts += 1
+        if (record.killed) {
+          this.tankKills += 1
+        }
+      }
       return
     }
     this.normalImpacts += 1
@@ -76,6 +102,19 @@ export class ShootingHitDebug {
     if (record.damagedTargets > 1) {
       this.multiDamageImpacts += 1
     }
+  }
+
+  recordTankReservation(concurrentReservations: number, wasAlreadyReserved: boolean): void {
+    if (!this.enabled) {
+      return
+    }
+    if (wasAlreadyReserved) {
+      this.tankShotsWhileReserved += 1
+    }
+    this.maxTankConcurrentReservations = Math.max(
+      this.maxTankConcurrentReservations,
+      concurrentReservations,
+    )
   }
 
   recordStaleImpact(behavior: MonsterBehavior | null): void {
@@ -95,6 +134,13 @@ export class ShootingHitDebug {
       missedNormalImpacts: this.missedNormalImpacts,
       staleNormalImpacts: this.staleNormalImpacts,
       multiDamageImpacts: this.multiDamageImpacts,
+      tankShots: this.tankShots,
+      tankImpacts: this.tankImpacts,
+      tankKills: this.tankKills,
+      tankShotsWhileReserved: this.tankShotsWhileReserved,
+      maxTankConcurrentReservations: this.maxTankConcurrentReservations,
+      maxTankProjectileHitRadius: this.maxTankProjectileHitRadius,
+      maxTankProjectileHitHalfDepth: this.maxTankProjectileHitHalfDepth,
       reservedTargets,
       minNormalHitRadius: this.finiteOrZero(this.minNormalHitRadius),
       maxNormalHitRadius: this.maxNormalHitRadius,

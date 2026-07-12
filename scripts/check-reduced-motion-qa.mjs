@@ -90,7 +90,7 @@ async function readReducedMotionStats(page) {
   return page.evaluate(() => {
     const button = document.querySelector(".tap-to-start")
     const startScreen = document.querySelector("#start-screen")
-    const title = document.querySelector(".game-title")
+    const title = document.querySelector(".start-title-logo, .game-title")
     const textOf = (selector) => document.querySelector(selector)?.textContent ?? ""
     return {
       prefersReducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,

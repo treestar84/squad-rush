@@ -5,7 +5,7 @@ import {
   Scene,
   StandardMaterial,
 } from "@babylonjs/core"
-import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial"
+import type { AbstractMesh } from "@babylonjs/core"
 import { MONSTER_BEHAVIORS, type MonsterBehavior, type MonsterConfig } from "../data/monsterData"
 import { cloneGltfVisual, type GltfAsset } from "../utils/assetLoader"
 
@@ -16,6 +16,12 @@ const TANK_ARMOR_HEIGHT = 0.34
 const DOGURI_VISUAL_SCALE = 1.9
 const DOGURI_FACE_SOLDIER_ROTATION_Y = Math.PI
 const DOGURI_SHADOW_Y = -0.02
+const BASIC_OVERLAY_ALPHA = 0.5
+const FAST_OVERLAY_ALPHA = 0.38
+const DEATH_GREY = new Color3(0.42, 0.42, 0.4)
+const MONSTER_MOTION_ROOT_PREFIX = "monster_motion_root_"
+const MONSTER_CONTACT_SHADOW_PREFIX = "monster_contact_shadow_"
+const MONSTER_ROLE_CUE_PREFIX = "monster_role_cue_root_"
 
 export type MonsterModelAssets = {
   readonly defaultAsset: GltfAsset | null
@@ -32,61 +38,91 @@ export function createMonsterContactShadowMaterial(scene: Scene): StandardMateri
   return mat
 }
 
+export function createMonsterDeathMaterial(scene: Scene): StandardMaterial {
+  const mat = new StandardMaterial("monsterDeathGreySharedMat", scene)
+  mat.diffuseColor = DEATH_GREY
+  mat.emissiveColor = DEATH_GREY.scale(0.055)
+  mat.specularColor = Color3.Black()
+  mat.freeze()
+  return mat
+}
+
 export function createMonsterVisual(
   scene: Scene,
   index: number,
   behavior: MonsterBehavior,
   assets: MonsterModelAssets | null,
   contactShadowMat: StandardMaterial,
+  useAuthoredVisual = true,
+  useContactShadow = true,
+  compactHordeVisuals = false,
 ): Mesh {
   const root = new Mesh(`monster_${behavior.toLowerCase()}_${index}`, scene)
-  const authoredAsset = selectAuthoredAsset(assets, behavior)
+  const motionRoot = new Mesh(`${MONSTER_MOTION_ROOT_PREFIX}${behavior.toLowerCase()}_${index}`, scene)
+  motionRoot.parent = root
+  const authoredAsset = useAuthoredVisual ? selectAuthoredAsset(assets, behavior) : null
   if (authoredAsset !== null) {
     const visual = cloneGltfVisual(
       authoredAsset,
       `monster_doguri_visual_${behavior.toLowerCase()}_${index}`,
       scene,
-      { cloneMaterials: behavior !== MONSTER_BEHAVIORS.tank },
+      { cloneMaterials: false },
     )
-    visual.parent = root
+    visual.parent = motionRoot
     visual.position.set(0, 0, 0)
     visual.rotation.y = DOGURI_FACE_SOLDIER_ROTATION_Y
     visual.scaling.setAll(DOGURI_VISUAL_SCALE)
-    applyAuthoredThreatTint(visual, behavior)
-    if (behavior !== MONSTER_BEHAVIORS.tank) {
+    if (!compactHordeVisuals || behavior === MONSTER_BEHAVIORS.fast || isCombatRoleBehavior(behavior)) {
+      applyAuthoredThreatTint(visual, behavior)
+    }
+    if ((!compactHordeVisuals && behavior !== MONSTER_BEHAVIORS.tank) || isCombatRoleBehavior(behavior)) {
       const cueRoot = new Mesh(`monster_doguri_cue_${behavior.toLowerCase()}_${index}`, scene)
-      cueRoot.parent = root
+      cueRoot.parent = motionRoot
       cueRoot.scaling.setAll(DOGURI_VISUAL_SCALE)
       addAuthoredThreatBadge(scene, cueRoot, index, behavior)
       addBehaviorCue(scene, cueRoot, index, behavior)
     }
-    addContactShadow(scene, root, index, contactShadowMat, DOGURI_SHADOW_Y)
+    if (useContactShadow) {
+      addContactShadow(scene, root, index, contactShadowMat, DOGURI_SHADOW_Y)
+    }
     return root
   }
 
-  createFallbackBody(scene, root, index)
-  addBehaviorCue(scene, root, index, behavior)
-  addContactShadow(scene, root, index, contactShadowMat)
+  createFallbackBody(scene, motionRoot, index)
+  if (!compactHordeVisuals || behavior === MONSTER_BEHAVIORS.tank || isCombatRoleBehavior(behavior)) {
+    addBehaviorCue(scene, motionRoot, index, behavior)
+  }
+  if (useContactShadow) {
+    addContactShadow(scene, root, index, contactShadowMat)
+  }
   return root
+}
+
+export function resolveMonsterMotionRoot(root: Mesh): Mesh {
+  const motionRoot = root.getChildMeshes(false).find((child) => child.name.startsWith(MONSTER_MOTION_ROOT_PREFIX))
+  return motionRoot instanceof Mesh ? motionRoot : root
+}
+
+export function resolveMonsterContactShadow(root: Mesh): Mesh | null {
+  const shadow = root.getChildMeshes(false).find((child) => child.name.startsWith(MONSTER_CONTACT_SHADOW_PREFIX))
+  return shadow instanceof Mesh ? shadow : null
+}
+
+export function resolveMonsterRoleCue(root: Mesh): Mesh | null {
+  const cue = root.getChildMeshes(false).find((child) => child.name.startsWith(MONSTER_ROLE_CUE_PREFIX))
+  return cue instanceof Mesh ? cue : null
 }
 
 function applyAuthoredThreatTint(visual: Mesh, behavior: MonsterBehavior): void {
   if (behavior === MONSTER_BEHAVIORS.tank) {
     return
   }
-  const color = behavior === MONSTER_BEHAVIORS.fast
-    ? new Color3(1, 0.42, 0.02)
-    : new Color3(0.96, 0.02, 0.02)
+  const color = getBehaviorColor(behavior)
   for (const child of visual.getChildMeshes(false)) {
-    if (child.material instanceof StandardMaterial) {
-      child.material.diffuseColor = color
-      child.material.emissiveColor = color.scale(0.28)
-    } else if (child.material instanceof PBRMaterial) {
-      child.material.albedoColor = color
-      child.material.emissiveColor = color.scale(0.18)
-    }
     child.overlayColor = color
-    child.overlayAlpha = behavior === MONSTER_BEHAVIORS.fast ? 0.38 : 0.5
+    child.overlayAlpha = behavior === MONSTER_BEHAVIORS.fast || behavior === MONSTER_BEHAVIORS.charger
+      ? 0.38
+      : 0.5
     child.renderOverlay = true
   }
 }
@@ -98,10 +134,20 @@ export function usesAuthoredMonsterVisual(assets: MonsterModelAssets | null, beh
 export function applyMonsterVisualTint(mesh: Mesh, config: MonsterConfig): void {
   const tint = Color3.FromHexString(config.cssColor)
   for (const child of mesh.getChildMeshes(false)) {
-    if (!child.name.includes("monster_contact_shadow")) {
-      applyMaterialTint(child.material, tint, config)
+    if (isTintableMonsterMesh(child)) {
+      child.overlayColor = tint
+      child.overlayAlpha = config.behavior === MONSTER_BEHAVIORS.fast || config.behavior === MONSTER_BEHAVIORS.charger
+        ? FAST_OVERLAY_ALPHA
+        : BASIC_OVERLAY_ALPHA
+      child.renderOverlay = true
     }
   }
+}
+
+function isTintableMonsterMesh(mesh: AbstractMesh): boolean {
+  return !mesh.name.includes("monster_contact_shadow")
+    && !mesh.name.includes("monster_mid_boss_hp")
+    && !mesh.name.includes("monster_role_cue_")
 }
 
 function createFallbackBody(scene: Scene, root: Mesh, index: number): void {
@@ -138,16 +184,9 @@ function createFallbackBody(scene: Scene, root: Mesh, index: number): void {
 
 function addBehaviorCue(scene: Scene, root: Mesh, index: number, behavior: MonsterBehavior): void {
   const cueMat = new StandardMaterial(`monsterCueMat_${behavior}_${index}`, scene)
-  cueMat.diffuseColor = behavior === MONSTER_BEHAVIORS.tank
-    ? new Color3(0.54, 0.12, 0.78)
-    : behavior === MONSTER_BEHAVIORS.fast
-      ? new Color3(1, 0.55, 0.05)
-      : new Color3(0.74, 0.035, 0.025)
-  cueMat.emissiveColor = behavior === MONSTER_BEHAVIORS.tank
-    ? new Color3(0.24, 0.03, 0.42)
-    : behavior === MONSTER_BEHAVIORS.fast
-      ? new Color3(0.58, 0.18, 0.01)
-      : new Color3(0.42, 0.01, 0.01)
+  cueMat.diffuseColor = getBehaviorColor(behavior)
+  cueMat.emissiveColor = getBehaviorEmissiveColor(behavior)
+  cueMat.specularColor = Color3.Black()
 
   if (behavior === MONSTER_BEHAVIORS.tank) {
     for (const x of [-0.42, 0.42]) {
@@ -162,18 +201,34 @@ function addBehaviorCue(scene: Scene, root: Mesh, index: number, behavior: Monst
       armor.parent = root
       armor.position.set(0, 0.34, z)
     }
-  } else if (behavior === MONSTER_BEHAVIORS.fast) {
+  } else if (behavior === MONSTER_BEHAVIORS.fast || behavior === MONSTER_BEHAVIORS.charger) {
     for (const x of [-0.34, 0.34]) {
-      const horn = MeshBuilder.CreateSphere(`monster_variant_fast_${index}_${x}`, { diameterX: 0.16, diameterY: 0.24, diameterZ: 0.18, segments: 8 }, scene)
+      const horn = MeshBuilder.CreateSphere(`monster_variant_${behavior.toLowerCase()}_${index}_${x}`, {
+        diameterX: behavior === MONSTER_BEHAVIORS.charger ? 0.18 : 0.16,
+        diameterY: behavior === MONSTER_BEHAVIORS.charger ? 0.42 : 0.24,
+        diameterZ: 0.18,
+        segments: 8,
+      }, scene)
       horn.material = cueMat
       horn.parent = root
-      horn.position.set(x, 0.22, 0.22)
-      const fin = MeshBuilder.CreateSphere(`monster_variant_fast_side_fin_${index}_${x}`, { diameterX: FAST_FIN_WIDTH, diameterY: FAST_FIN_HEIGHT, diameterZ: 0.16, segments: 8 }, scene)
-      fin.material = cueMat
-      fin.parent = root
-      fin.rotation.z = x < 0 ? -0.34 : 0.34
-      fin.position.set(x * 1.34, 0.08, -0.1)
+      horn.rotation.x = behavior === MONSTER_BEHAVIORS.charger ? -0.48 : 0
+      horn.position.set(x, behavior === MONSTER_BEHAVIORS.charger ? 0.3 : 0.22, behavior === MONSTER_BEHAVIORS.charger ? -0.3 : 0.22)
+      if (behavior === MONSTER_BEHAVIORS.fast) {
+        const fin = MeshBuilder.CreateSphere(`monster_variant_fast_side_fin_${index}_${x}`, { diameterX: FAST_FIN_WIDTH, diameterY: FAST_FIN_HEIGHT, diameterZ: 0.16, segments: 8 }, scene)
+        fin.material = cueMat
+        fin.parent = root
+        fin.rotation.z = x < 0 ? -0.34 : 0.34
+        fin.position.set(x * 1.34, 0.08, -0.1)
+      }
     }
+  } else if (behavior === MONSTER_BEHAVIORS.shield) {
+    addShieldRoleCue(scene, root, index, cueMat)
+  } else if (behavior === MONSTER_BEHAVIORS.splitter) {
+    addSplitterRoleCue(scene, root, index, cueMat)
+  }
+
+  if (behavior === MONSTER_BEHAVIORS.charger) {
+    addChargeRoleCue(scene, root, index, cueMat)
   }
 
   const spine = MeshBuilder.CreateSphere(`monster_back_spine_${behavior}_${index}`, { diameterX: 0.18, diameterY: 0.2, diameterZ: 0.5, segments: 6 }, scene)
@@ -184,12 +239,8 @@ function addBehaviorCue(scene: Scene, root: Mesh, index: number, behavior: Monst
 
 function addAuthoredThreatBadge(scene: Scene, root: Mesh, index: number, behavior: MonsterBehavior): void {
   const badgeMat = new StandardMaterial(`monsterDoguriBadgeMat_${behavior}_${index}`, scene)
-  badgeMat.diffuseColor = behavior === MONSTER_BEHAVIORS.fast
-    ? new Color3(1, 0.44, 0.02)
-    : new Color3(0.9, 0.02, 0.02)
-  badgeMat.emissiveColor = behavior === MONSTER_BEHAVIORS.fast
-    ? new Color3(0.48, 0.16, 0.01)
-    : new Color3(0.52, 0.01, 0.01)
+  badgeMat.diffuseColor = getBehaviorColor(behavior)
+  badgeMat.emissiveColor = getBehaviorEmissiveColor(behavior)
   badgeMat.specularColor = Color3.Black()
   badgeMat.backFaceCulling = false
 
@@ -210,10 +261,101 @@ function selectAuthoredAsset(assets: MonsterModelAssets | null, behavior: Monste
   }
   const asset = behavior === MONSTER_BEHAVIORS.tank
     ? assets.tankAsset
-    : behavior === MONSTER_BEHAVIORS.fast
+    : behavior === MONSTER_BEHAVIORS.fast || behavior === MONSTER_BEHAVIORS.charger
       ? assets.fastAsset ?? assets.defaultAsset
       : assets.defaultAsset
   return asset?.isReal === true ? asset : null
+}
+
+function addShieldRoleCue(scene: Scene, root: Mesh, index: number, material: StandardMaterial): void {
+  const cueRoot = new Mesh(`${MONSTER_ROLE_CUE_PREFIX}shield_${index}`, scene)
+  cueRoot.parent = root
+  const plate = MeshBuilder.CreateBox(
+    `monster_role_cue_shield_plate_${index}`,
+    { width: 1.2, height: 0.64, depth: 0.1 },
+    scene,
+  )
+  plate.parent = cueRoot
+  plate.position.set(0, 0.02, -0.62)
+  plate.material = material
+  const brace = MeshBuilder.CreateBox(
+    `monster_role_cue_shield_brace_${index}`,
+    { width: 0.18, height: 0.78, depth: 0.13 },
+    scene,
+  )
+  brace.parent = cueRoot
+  brace.position.set(0, 0.02, -0.68)
+  brace.material = material
+}
+
+function addChargeRoleCue(scene: Scene, root: Mesh, index: number, material: StandardMaterial): void {
+  const cueRoot = new Mesh(`${MONSTER_ROLE_CUE_PREFIX}charger_${index}`, scene)
+  cueRoot.parent = root
+  const lane = MeshBuilder.CreateBox(
+    `monster_role_cue_charge_lane_${index}`,
+    { width: 0.26, height: 0.035, depth: 2.4 },
+    scene,
+  )
+  lane.parent = cueRoot
+  lane.position.set(0, -0.4, -1.45)
+  lane.material = material
+  const warning = MeshBuilder.CreateCylinder(
+    `monster_role_cue_charge_warning_${index}`,
+    { diameter: 0.5, height: 0.08, tessellation: 3 },
+    scene,
+  )
+  warning.parent = cueRoot
+  warning.position.set(0, 0.72, -0.24)
+  warning.rotation.x = Math.PI * 0.5
+  warning.material = material
+  cueRoot.setEnabled(false)
+}
+
+function addSplitterRoleCue(scene: Scene, root: Mesh, index: number, material: StandardMaterial): void {
+  const cueRoot = new Mesh(`${MONSTER_ROLE_CUE_PREFIX}splitter_${index}`, scene)
+  cueRoot.parent = root
+  const band = MeshBuilder.CreateBox(
+    `monster_role_cue_splitter_band_${index}`,
+    { width: 1.02, height: 0.14, depth: 0.12 },
+    scene,
+  )
+  band.parent = cueRoot
+  band.position.set(0, 0.06, -0.54)
+  band.material = material
+  for (const x of [-0.3, 0.3]) {
+    const core = MeshBuilder.CreateSphere(
+      `monster_role_cue_splitter_core_${index}_${x}`,
+      { diameter: 0.28, segments: 6 },
+      scene,
+    )
+    core.parent = cueRoot
+    core.position.set(x, 0.2, -0.5)
+    core.material = material
+  }
+}
+
+function isCombatRoleBehavior(behavior: MonsterBehavior): boolean {
+  return behavior === MONSTER_BEHAVIORS.shield
+    || behavior === MONSTER_BEHAVIORS.charger
+    || behavior === MONSTER_BEHAVIORS.splitter
+}
+
+function getBehaviorColor(behavior: MonsterBehavior): Color3 {
+  if (behavior === MONSTER_BEHAVIORS.tank) return new Color3(0.54, 0.12, 0.78)
+  if (behavior === MONSTER_BEHAVIORS.fast) return new Color3(1, 0.55, 0.05)
+  if (behavior === MONSTER_BEHAVIORS.shield) return new Color3(0.08, 0.66, 0.92)
+  if (behavior === MONSTER_BEHAVIORS.charger) return new Color3(0.98, 0.72, 0.04)
+  if (behavior === MONSTER_BEHAVIORS.splitter) return new Color3(0.91, 0.32, 0.95)
+  return new Color3(0.74, 0.035, 0.025)
+}
+
+function getBehaviorEmissiveColor(behavior: MonsterBehavior): Color3 {
+  if (behavior === MONSTER_BEHAVIORS.tank) return new Color3(0.24, 0.03, 0.42)
+  if (behavior === MONSTER_BEHAVIORS.fast) return new Color3(0.58, 0.18, 0.01)
+  if (behavior === MONSTER_BEHAVIORS.shield) return new Color3(0.01, 0.28, 0.48)
+  if (behavior === MONSTER_BEHAVIORS.charger) return new Color3(0.6, 0.28, 0.01)
+  if (behavior === MONSTER_BEHAVIORS.splitter) return new Color3(0.42, 0.03, 0.5)
+  return new Color3(0.42, 0.01, 0.01)
 }
 
 function addContactShadow(
@@ -224,7 +366,7 @@ function addContactShadow(
   y = -0.48,
 ): void {
   const shadow = MeshBuilder.CreateDisc(
-    `monster_contact_shadow_${index}`,
+    `${MONSTER_CONTACT_SHADOW_PREFIX}${index}`,
     { radius: 0.9, tessellation: 18 },
     scene,
   )
@@ -233,12 +375,4 @@ function addContactShadow(
   shadow.position.set(0, y, -0.06)
   shadow.scaling.set(1.25, 0.7, 1)
   shadow.material = material
-}
-
-function applyMaterialTint(material: Mesh["material"], color: Color3, config: MonsterConfig): void {
-  const emissive = color.scale(config.behavior === MONSTER_BEHAVIORS.fast ? 0.34 : 0.18)
-  if (material instanceof StandardMaterial) {
-    material.diffuseColor = color
-    material.emissiveColor = emissive
-  }
 }

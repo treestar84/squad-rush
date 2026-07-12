@@ -1,5 +1,5 @@
 import { Vector3 } from "@babylonjs/core"
-import { BULLET_FRONT_GLOW_OFFSET } from "./ProjectileMotion"
+import { BULLET_FRONT_GLOW_OFFSET, BULLET_POST_IMPACT_HEAD_FADE_DISTANCE } from "./ProjectileMotion"
 import { getMeshAlpha, type Trail } from "./ProjectileVisuals"
 
 type ProjectileDebugState = {
@@ -27,6 +27,19 @@ declare global {
 
 const headLocalPosition = new Vector3(0, 0, BULLET_FRONT_GLOW_OFFSET)
 const headWorldPosition = new Vector3(0, 0, 0)
+
+let peakTravelRatio = 0
+let peakPreImpactTravelRatio = 0
+let peakPreImpactHeadWorldAdvance = 0
+let peakVisualHeadWorldAdvance = 0
+let peakNearImpactVisibleRatio = 0
+let peakPostImpactVisualTravelRatio = 0
+let peakPostImpactDistance = 0
+let peakImpactToVisualDistance = 0
+let peakImpactDistance = 0
+let lowestVisualReach = Number.POSITIVE_INFINITY
+let lowestPreImpactHeadAlpha = Number.POSITIVE_INFINITY
+let lowestPreImpactTrailAlpha = Number.POSITIVE_INFINITY
 
 export function publishProjectileDebug(enabled: boolean, trails: readonly Trail[], shotsCreated: number): void {
   if (!enabled) {
@@ -71,25 +84,48 @@ export function publishProjectileDebug(enabled: boolean, trails: readonly Trail[
       )
     } else {
       const postImpactDistance = Math.max(0, trail.traveled - trail.impactDistance)
+      maxPreImpactTravelRatio = Math.max(maxPreImpactTravelRatio, 1)
+      maxNearImpactVisibleRatio = Math.max(
+        maxNearImpactVisibleRatio,
+        postImpactDistance <= BULLET_POST_IMPACT_HEAD_FADE_DISTANCE ? 1 : 0,
+      )
       maxPostImpactVisualTravelRatio = Math.max(maxPostImpactVisualTravelRatio, travelRatio)
       maxPostImpactDistance = Math.max(maxPostImpactDistance, postImpactDistance)
       maxImpactToVisualDistance = Math.max(maxImpactToVisualDistance, trail.travelDistance - trail.impactDistance)
     }
   }
+  peakTravelRatio = Math.max(peakTravelRatio, maxTravelRatio)
+  peakPreImpactTravelRatio = Math.max(peakPreImpactTravelRatio, maxPreImpactTravelRatio)
+  peakPreImpactHeadWorldAdvance = Math.max(peakPreImpactHeadWorldAdvance, maxPreImpactHeadWorldAdvance)
+  peakVisualHeadWorldAdvance = Math.max(peakVisualHeadWorldAdvance, maxVisualHeadWorldAdvance)
+  peakNearImpactVisibleRatio = Math.max(peakNearImpactVisibleRatio, maxNearImpactVisibleRatio)
+  peakPostImpactVisualTravelRatio = Math.max(peakPostImpactVisualTravelRatio, maxPostImpactVisualTravelRatio)
+  peakPostImpactDistance = Math.max(peakPostImpactDistance, maxPostImpactDistance)
+  peakImpactToVisualDistance = Math.max(peakImpactToVisualDistance, maxImpactToVisualDistance)
+  peakImpactDistance = Math.max(peakImpactDistance, maxImpactDistance)
+  if (Number.isFinite(minVisualReach)) {
+    lowestVisualReach = Math.min(lowestVisualReach, minVisualReach)
+  }
+  if (Number.isFinite(minPreImpactHeadAlpha)) {
+    lowestPreImpactHeadAlpha = Math.min(lowestPreImpactHeadAlpha, minPreImpactHeadAlpha)
+  }
+  if (Number.isFinite(minPreImpactTrailAlpha)) {
+    lowestPreImpactTrailAlpha = Math.min(lowestPreImpactTrailAlpha, minPreImpactTrailAlpha)
+  }
   window.__squadRushProjectileDebug = {
     active: trails.length,
     shotsCreated,
-    maxTravelRatio,
-    maxPreImpactTravelRatio,
-    maxPreImpactHeadWorldAdvance,
-    maxVisualHeadWorldAdvance,
-    maxNearImpactVisibleRatio,
-    maxPostImpactVisualTravelRatio,
-    maxPostImpactDistance,
-    maxImpactToVisualDistance,
-    minVisualReach: Number.isFinite(minVisualReach) ? minVisualReach : 0,
-    maxImpactDistance,
-    minPreImpactHeadAlpha: Number.isFinite(minPreImpactHeadAlpha) ? minPreImpactHeadAlpha : 0,
-    minPreImpactTrailAlpha: Number.isFinite(minPreImpactTrailAlpha) ? minPreImpactTrailAlpha : 0,
+    maxTravelRatio: peakTravelRatio,
+    maxPreImpactTravelRatio: peakPreImpactTravelRatio,
+    maxPreImpactHeadWorldAdvance: peakPreImpactHeadWorldAdvance,
+    maxVisualHeadWorldAdvance: peakVisualHeadWorldAdvance,
+    maxNearImpactVisibleRatio: peakNearImpactVisibleRatio,
+    maxPostImpactVisualTravelRatio: peakPostImpactVisualTravelRatio,
+    maxPostImpactDistance: peakPostImpactDistance,
+    maxImpactToVisualDistance: peakImpactToVisualDistance,
+    minVisualReach: Number.isFinite(lowestVisualReach) ? lowestVisualReach : 0,
+    maxImpactDistance: peakImpactDistance,
+    minPreImpactHeadAlpha: Number.isFinite(lowestPreImpactHeadAlpha) ? lowestPreImpactHeadAlpha : 0,
+    minPreImpactTrailAlpha: Number.isFinite(lowestPreImpactTrailAlpha) ? lowestPreImpactTrailAlpha : 0,
   }
 }

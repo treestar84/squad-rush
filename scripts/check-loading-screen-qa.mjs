@@ -77,8 +77,8 @@ async function readLoadingStats(page) {
     return {
       loadingVisible: loading instanceof HTMLElement && getComputedStyle(loading).display !== "none",
       startVisible: start instanceof HTMLElement && getComputedStyle(start).display !== "none",
-      logo: document.querySelector(".loading-logo")?.textContent ?? "",
-      kicker: document.querySelector(".loading-kicker")?.textContent ?? "",
+      logoAlt: document.querySelector(".loading-logo")?.getAttribute("alt") ?? "",
+      message: document.querySelector(".loading-message")?.textContent ?? "",
       stage: document.querySelector("[data-role='loading-stage']")?.textContent ?? "",
       text: document.querySelector(".loading-text")?.textContent ?? "",
       progressNow: progressbar instanceof HTMLElement ? progressbar.getAttribute("aria-valuenow") ?? "" : "",
@@ -92,9 +92,11 @@ async function readLoadingStats(page) {
 }
 
 assertQa(loadingSource.includes("role=\"progressbar\""), "LoadingScreen must expose an accessible progressbar.")
-assertQa(loadingSource.includes("MISSION BOOT"), "LoadingScreen must use tactical boot copy.")
+assertQa(loadingSource.includes("/assets/ui/start-title-logo.png"), "LoadingScreen must display the title image.")
+assertQa(loadingSource.includes("판교에 포탈이 열리고"), "LoadingScreen must use the Pangyo emergency story copy.")
 assertQa(loadingSource.includes("stageForProgress"), "LoadingScreen must map loading progress to readable stages.")
 assertQa(appSource.includes('get("qa") === "loading"'), "App must expose qa=loading hold for browser capture.")
+assertQa(cssSource.includes(".loading-message"), "Loading screen story message styling is missing.")
 assertQa(cssSource.includes(".loading-metrics"), "Loading screen readiness chips are missing.")
 assertQa(designSource.includes("Loading QA"), "DESIGN.md must document Loading QA.")
 
@@ -153,8 +155,8 @@ try {
   assertQa(consoleErrors.length === 0, `Loading console errors detected: ${consoleErrors.join(" | ")}`)
   assertQa(pageErrors.length === 0, `Loading page errors detected: ${pageErrors.join(" | ")}`)
   assertQa(loadingStats.loadingVisible, "Loading screen was not visible during asset boot.")
-  assertQa(loadingStats.logo.includes("바로 Go 스쿼드"), "Loading logo is missing.")
-  assertQa(loadingStats.kicker.includes("MISSION BOOT"), "Loading kicker is missing.")
+  assertQa(loadingStats.logoAlt.includes("바로 Go 스쿼드"), "Loading title image alt text is missing.")
+  assertQa(loadingStats.message.includes("판교에 포탈이 열리고"), "Loading story message is missing.")
   assertQa(loadingStats.stage.length > 0, "Loading stage copy is missing.")
   assertQa(loadingStats.progressNow === "0" && loadingStats.progressMax === "100", "Loading progressbar ARIA values are incorrect at boot.")
   assertQa(loadingStats.metricCount === 3, "Loading readiness chips are missing.")

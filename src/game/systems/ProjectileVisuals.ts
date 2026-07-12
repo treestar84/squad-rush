@@ -37,6 +37,7 @@ export type Trail = {
   impactY: number
   impactZ: number
   impactTriggered: boolean
+  stopAtImpact: boolean
   onImpact: (() => void) | null
 }
 
@@ -148,6 +149,7 @@ export function createTrail(scene: Scene, index: number): Trail {
     impactY: 0,
     impactZ: 0,
     impactTriggered: false,
+    stopAtImpact: false,
     onImpact: null,
   }
 }

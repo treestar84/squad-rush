@@ -11,11 +11,11 @@ import {
 
 export function initScene(engine: AbstractEngine): Scene {
   const scene = new Scene(engine)
-  scene.clearColor = new Color4(0.53, 0.81, 0.98, 1)
+  scene.clearColor = new Color4(0.08, 0.09, 0.1, 1)
   scene.fogMode = Scene.FOGMODE_LINEAR
   scene.fogStart = 85
   scene.fogEnd = 170
-  scene.fogColor = new Color3(0.53, 0.81, 0.98)
+  scene.fogColor = new Color3(0.08, 0.09, 0.1)
 
   const camera = new ArcRotateCamera("bootCamera", -Math.PI / 2, Math.PI / 3.5, 30, new Vector3(0, 0, 10), scene)
   camera.fov = 0.78

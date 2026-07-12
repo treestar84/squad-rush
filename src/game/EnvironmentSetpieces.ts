@@ -6,7 +6,7 @@ import {
   StandardMaterial,
 } from "@babylonjs/core"
 import type { QualitySettings } from "./systems/QualitySystem"
-import { cloneGltfVisual, type AssetManifest } from "./utils/assetLoader"
+import type { AssetManifest } from "./utils/assetLoader"
 
 type EnvironmentDebugState = {
   readonly serviceDecks: number
@@ -14,19 +14,26 @@ type EnvironmentDebugState = {
   readonly cargoStacks: number
   readonly authoredRoadSegments: number
   readonly authoredGateFrames: number
+  readonly stageLength: number
+  readonly serviceDeckCoverageEndZ: number
 }
 
 type SetpieceMaterials = {
   readonly deck: StandardMaterial
   readonly support: StandardMaterial
   readonly signal: StandardMaterial
-  readonly cargo: StandardMaterial
 }
 
 type SetpieceBudget = {
   readonly serviceDecks: number
-  readonly cargoGroups: number
-  readonly roadSegments: number
+}
+
+type AddEnvironmentSetpiecesParams = {
+  readonly scene: Scene
+  readonly assets: AssetManifest | undefined
+  readonly quality: QualitySettings
+  readonly enabled: boolean
+  readonly stageLength: number
 }
 
 declare global {
@@ -35,27 +42,46 @@ declare global {
   }
 }
 
-export function addAuthoredEnvironmentSetpieces(scene: Scene, assets: AssetManifest | undefined, quality: QualitySettings): void {
-  const materials = createSetpieceMaterials(scene)
-  const budget = getSetpieceBudget(quality)
-  const serviceDecks = addServiceDecks(scene, materials, budget)
-  const cargoStacks = addSideCargoStacks(scene, materials, budget)
-  const authoredRoadSegments = addAuthoredRoadSegments(scene, assets, budget)
+export function addAuthoredEnvironmentSetpieces(params: AddEnvironmentSetpiecesParams): void {
+  if (!params.enabled) {
+    publishEnvironmentDebug({
+      serviceDecks: 0,
+      gantries: 0,
+      cargoStacks: 0,
+      authoredRoadSegments: 0,
+      authoredGateFrames: 0,
+      stageLength: params.stageLength,
+      serviceDeckCoverageEndZ: 0,
+    })
+    return
+  }
 
-  window.__squadRushEnvironmentDebug = {
+  const { scene, quality } = params
+  const materials = createSetpieceMaterials(scene)
+  const budget = getSetpieceBudget(quality, params.stageLength)
+  const serviceDecks = addServiceDecks(scene, materials, budget)
+
+  publishEnvironmentDebug({
     serviceDecks,
     gantries: 0,
-    cargoStacks,
-    authoredRoadSegments,
+    cargoStacks: 0,
+    authoredRoadSegments: 0,
     authoredGateFrames: 0,
-  }
+    stageLength: params.stageLength,
+    serviceDeckCoverageEndZ: getServiceDeckCoverageEndZ(serviceDecks),
+  })
 }
 
-function getSetpieceBudget(quality: QualitySettings): SetpieceBudget {
+function publishEnvironmentDebug(debug: EnvironmentDebugState): void {
+  window.__squadRushEnvironmentDebug = debug
+}
+
+function getSetpieceBudget(quality: QualitySettings, stageLength: number): SetpieceBudget {
+  const stageDecks = Math.ceil(Math.max(0, stageLength - 26) / 36) + 1
   if (quality.maxMonsters < 300) {
-    return { serviceDecks: 4, cargoGroups: 3, roadSegments: 4 }
+    return { serviceDecks: Math.max(4, stageDecks) }
   }
-  return { serviceDecks: 14, cargoGroups: 10, roadSegments: 18 }
+  return { serviceDecks: Math.max(14, stageDecks) }
 }
 
 function createSetpieceMaterials(scene: Scene): SetpieceMaterials {
@@ -72,10 +98,7 @@ function createSetpieceMaterials(scene: Scene): SetpieceMaterials {
   signal.diffuseColor = new Color3(1, 0.62, 0.1)
   signal.emissiveColor = new Color3(0.8, 0.28, 0.02)
 
-  const cargo = new StandardMaterial("sideCargoMat", scene)
-  cargo.diffuseColor = new Color3(0.78, 0.34, 0.07)
-  cargo.specularColor = new Color3(0.12, 0.07, 0.03)
-  return { deck, support, signal, cargo }
+  return { deck, support, signal }
 }
 
 function addServiceDecks(scene: Scene, materials: SetpieceMaterials, budget: SetpieceBudget): number {
@@ -105,37 +128,11 @@ function addServiceDecks(scene: Scene, materials: SetpieceMaterials, budget: Set
   return count
 }
 
-function addSideCargoStacks(scene: Scene, materials: SetpieceMaterials, budget: SetpieceBudget): number {
-  let count = 0
-  for (let index = 0; index < budget.cargoGroups; index += 1) {
-    const side = index % 2 === 0 ? 1 : -1
-    const baseZ = 44 + index * 33
-    for (let stack = 0; stack < 2; stack += 1) {
-      const crate = MeshBuilder.CreateBox(`authored_side_cargo_${index}_${stack}`, { width: 1.7, height: 0.75, depth: 2.2 }, scene)
-      crate.material = materials.cargo
-      crate.rotation.y = side * (0.08 + stack * 0.04)
-      crate.position.set(side * (12.5 + stack * 0.82), 0.34 + stack * 0.34, baseZ + stack * 1.25)
-      freezeStaticMeshTree(crate)
-      count += 1
-    }
-  }
-  return count
-}
-
-function addAuthoredRoadSegments(scene: Scene, assets: AssetManifest | undefined, budget: SetpieceBudget): number {
-  if (assets?.roadSegmentAsset.isReal !== true) {
+function getServiceDeckCoverageEndZ(serviceDecks: number): number {
+  if (serviceDecks <= 0) {
     return 0
   }
-  for (let index = 0; index < budget.roadSegments; index += 1) {
-    const z = 18 + index * 22
-    const x = index % 2 === 0 ? -9.35 : 9.35
-    const segment = cloneGltfVisual(assets.roadSegmentAsset, `authored_road_segment_${index}`, scene)
-    segment.position.set(x, 0.16, z)
-    segment.rotation.y = index % 2 === 0 ? Math.PI * 0.5 : -Math.PI * 0.5
-    segment.scaling.set(1.25, 0.42, 1.25)
-    freezeStaticMeshTree(segment)
-  }
-  return budget.roadSegments
+  return 26 + (serviceDecks - 1) * 36
 }
 
 function freezeStaticMeshTree(root: Mesh): void {

@@ -21,6 +21,7 @@ export class GamePause {
   private setPaused(paused: boolean): void {
     this.paused = paused
     this.control.setPaused(paused)
+    this.audio.playUiReveal()
     if (paused) {
       this.audio.stopRunAmbience()
       return

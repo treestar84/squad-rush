@@ -7,8 +7,11 @@ import {
 } from "@babylonjs/core"
 
 const SOLDIER_ROLE_NAMES = ["rifle", "heavy", "scout"] as const
+const SOLDIER_HEAD_STYLES = ["blackHair", "greenHelmet", "purpleHelmet", "redHelmet"] as const
+const SOLDIER_HEAD_MARKER_PREFIX = "squad_unit_head_marker_"
 
 export type SoldierRoleName = (typeof SOLDIER_ROLE_NAMES)[number]
+export type SoldierHeadStyle = (typeof SOLDIER_HEAD_STYLES)[number]
 
 export function getSoldierRoleName(index: number): SoldierRoleName {
   return SOLDIER_ROLE_NAMES[index % SOLDIER_ROLE_NAMES.length] ?? "rifle"
@@ -25,6 +28,41 @@ export function attachSoldierRoleKit(mesh: Mesh, index: number, scene: Scene): v
   }
   if (role === "scout") {
     attachScoutAntenna(mesh, index, glowMat, scene)
+  }
+}
+
+export function attachSoldierHeadMarkers(mesh: Mesh, index: number, scene: Scene): void {
+  for (const style of SOLDIER_HEAD_STYLES) {
+    const marker = MeshBuilder.CreateSphere(
+      `${SOLDIER_HEAD_MARKER_PREFIX}${style}_${index}`,
+      { diameterX: style === "blackHair" ? 0.72 : 0.42, diameterY: style === "blackHair" ? 0.22 : 0.34, diameterZ: style === "blackHair" ? 0.62 : 0.46, segments: 12 },
+      scene,
+    )
+    marker.material = createHeadMaterial(style, index, scene)
+    marker.parent = mesh
+    marker.position.set(0, style === "blackHair" ? 0.96 : 1.1, style === "blackHair" ? 0.03 : 0.07)
+    marker.isPickable = false
+    marker.setEnabled(false)
+    if (style === "blackHair") {
+      const bang = MeshBuilder.CreateBox(
+        `${SOLDIER_HEAD_MARKER_PREFIX}${style}_bang_${index}`,
+        { width: 0.58, height: 0.18, depth: 0.26 },
+        scene,
+      )
+      bang.material = marker.material
+      bang.parent = mesh
+      bang.position.set(0, 0.98, 0.28)
+      bang.isPickable = false
+      bang.setEnabled(false)
+    }
+  }
+}
+
+export function applySoldierHeadStyle(mesh: Mesh, style: SoldierHeadStyle): void {
+  for (const child of mesh.getChildMeshes(false)) {
+    if (child.name.includes(SOLDIER_HEAD_MARKER_PREFIX)) {
+      child.setEnabled(child.name.includes(`${SOLDIER_HEAD_MARKER_PREFIX}${style}_`))
+    }
   }
 }
 
@@ -51,6 +89,29 @@ function createGlowMaterial(role: SoldierRoleName, index: number, scene: Scene):
   mat.diffuseColor = color
   mat.emissiveColor = color.scale(0.62)
   return mat
+}
+
+function createHeadMaterial(style: SoldierHeadStyle, index: number, scene: Scene): StandardMaterial {
+  const mat = new StandardMaterial(`soldierHeadMarkerMat_${style}_${index}`, scene)
+  switch (style) {
+    case "blackHair":
+      mat.diffuseColor = new Color3(0.005, 0.004, 0.004)
+      mat.emissiveColor = new Color3(0.018, 0.014, 0.012)
+      mat.specularColor = Color3.Black()
+      return mat
+    case "greenHelmet":
+      mat.diffuseColor = new Color3(0.08, 0.34, 0.13)
+      mat.specularColor = new Color3(0.3, 0.52, 0.28)
+      return mat
+    case "purpleHelmet":
+      mat.diffuseColor = new Color3(0.34, 0.14, 0.62)
+      mat.specularColor = new Color3(0.58, 0.36, 0.86)
+      return mat
+    case "redHelmet":
+      mat.diffuseColor = new Color3(0.72, 0.06, 0.08)
+      mat.specularColor = new Color3(0.95, 0.24, 0.2)
+      return mat
+  }
 }
 
 function attachChestPlate(mesh: Mesh, index: number, material: StandardMaterial, scene: Scene): void {

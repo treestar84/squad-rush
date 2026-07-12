@@ -17,7 +17,6 @@ function createWebGL2Engine(canvas: HTMLCanvasElement): Engine {
 
 async function createWebGPUEngine(canvas: HTMLCanvasElement): Promise<WebGPUEngine | null> {
   if (!("gpu" in navigator)) {
-    console.info("[Renderer] WebGPU requested but unavailable; falling back to WebGL2")
     return null
   }
   try {
@@ -27,7 +26,6 @@ async function createWebGPUEngine(canvas: HTMLCanvasElement): Promise<WebGPUEngi
       stencil: false,
       powerPreference: "high-performance",
     })
-    console.info("[Renderer] WebGPU enabled")
     return engine
   } catch (error: unknown) {
     if (error instanceof Error) {
@@ -44,11 +42,8 @@ export async function createEngine(canvas: HTMLCanvasElement): Promise<AbstractE
     if (webgpuEngine !== null) {
       return webgpuEngine
     }
-  } else if ("gpu" in navigator) {
-    console.info("[Renderer] WebGPU detected; WebGL2 selected by default")
   }
 
   const engine = createWebGL2Engine(canvas)
-  console.info("[Renderer] WebGL2 enabled")
   return engine
 }

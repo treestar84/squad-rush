@@ -3,6 +3,7 @@ export class InputController {
   private lastPointerX = 0
   private isDown = false
   private readonly keysHeld = new Set<string>()
+  private pendingCareerChoice: "military" | "overtime" | "fired" | null = null
   private readonly sensitivity = 0.035
 
   constructor(private readonly canvas: HTMLCanvasElement) {
@@ -37,6 +38,15 @@ export class InputController {
   }
 
   private readonly onKey = (event: KeyboardEvent): void => {
+    const careerChoice = this.normalizeCareerChoice(event)
+    if (careerChoice !== null) {
+      event.preventDefault()
+      if (!event.repeat) {
+        this.pendingCareerChoice = careerChoice
+      }
+      return
+    }
+
     const key = this.normalizeKey(event)
     if (key === null) {
       return
@@ -46,6 +56,11 @@ export class InputController {
   }
 
   private readonly onKeyUp = (event: KeyboardEvent): void => {
+    if (this.normalizeCareerChoice(event) !== null) {
+      event.preventDefault()
+      return
+    }
+
     const key = this.normalizeKey(event)
     if (key !== null) {
       event.preventDefault()
@@ -69,6 +84,12 @@ export class InputController {
     return movement
   }
 
+  consumeCareerChoice(): "military" | "overtime" | "fired" | null {
+    const choice = this.pendingCareerChoice
+    this.pendingCareerChoice = null
+    return choice
+  }
+
   dispose(): void {
     this.canvas.removeEventListener("pointerdown", this.onDown)
     this.canvas.removeEventListener("pointermove", this.onMove)
@@ -85,6 +106,19 @@ export class InputController {
     }
     if (event.key === "ArrowRight" || event.code === "KeyD") {
       return "right"
+    }
+    return null
+  }
+
+  private normalizeCareerChoice(event: KeyboardEvent): "military" | "overtime" | "fired" | null {
+    if (event.code === "KeyJ") {
+      return "military"
+    }
+    if (event.code === "KeyK") {
+      return "overtime"
+    }
+    if (event.code === "KeyL") {
+      return "fired"
     }
     return null
   }

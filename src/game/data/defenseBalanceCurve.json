@@ -1,0 +1,123 @@
+{
+  "curveVersion": 3,
+  "fireRate": 4,
+  "contentScrollSpeed": 1.6,
+  "spawnSpacing": 1.22,
+  "eapAnchors": [
+    [0, 4],
+    [0.03, 6.2],
+    [0.1, 8.5],
+    [0.14, 10.8],
+    [0.25, 14],
+    [0.4, 24],
+    [0.5, 34],
+    [0.62, 46],
+    [0.75, 62],
+    [0.88, 80],
+    [1, 95]
+  ],
+  "projectileAnchors": [
+    [0, 4],
+    [0.25, 9],
+    [0.5, 12],
+    [0.75, 15],
+    [1, 15]
+  ],
+  "stateBoundaries": [0.22, 0.38, 0.62, 0.78],
+  "boundaryBlend": 0.04,
+  "states": {
+    "onboarding_crowd": {
+      "balanceFactor": 0.7,
+      "shotsToKill": 1.5,
+      "mix": { "basic": 0.85, "fast": 0.15, "brute": 0 },
+      "visibleTarget": [230, 360]
+    },
+    "contested_pickup": {
+      "balanceFactor": 0.85,
+      "shotsToKill": 2,
+      "mix": { "basic": 0.7, "fast": 0.25, "brute": 0.05 },
+      "visibleTarget": [240, 360]
+    },
+    "boss_jam": {
+      "balanceFactor": 1,
+      "shotsToKill": 2.5,
+      "mix": { "basic": 0.6, "fast": 0.25, "brute": 0.15 },
+      "visibleTarget": [220, 360]
+    },
+    "recovery_burst": {
+      "balanceFactor": 0.8,
+      "shotsToKill": 2,
+      "mix": { "basic": 0.7, "fast": 0.2, "brute": 0.1 },
+      "visibleTarget": [250, 360]
+    },
+    "final_squeeze": {
+      "balanceFactor": 1.05,
+      "shotsToKill": 2.5,
+      "mix": { "basic": 0.55, "fast": 0.25, "brute": 0.2 },
+      "visibleTarget": [250, 360]
+    }
+  },
+  "monsterHpRatios": { "basic": 1, "fast": 2, "brute": 5 },
+  "boss": {
+    "focusRatio": 0.35,
+    "killTimeSeconds": 10,
+    "killTimeMinSeconds": 8,
+    "killTimeMaxSeconds": 12,
+    "defenseScale": 1.35
+  },
+  "defenseFastSpeedMultiplier": 0.85,
+  "lateralPowerExponent": 1.25,
+  "difficultyDerivation": {
+    "easy": { "influx": 0.5, "balanceCap": 0.75, "visibleTarget": 0.9, "bossHp": 0.7 },
+    "medium": { "influx": 0.72, "balanceCap": 0.9, "visibleTarget": 0.95, "bossHp": 0.85 },
+    "hard": { "influx": 1, "balanceCap": 1.05, "visibleTarget": 1, "bossHp": 1 },
+    "infinite": { "influx": 1, "balanceCap": 1.05, "visibleTarget": 1, "bossHp": 1 }
+  },
+  "gateSegments": [
+    {
+      "maxAuthoredZ": 140,
+      "left": [
+        { "gateId": "gate_add1", "weight": 40 },
+        { "gateId": "gate_add2", "weight": 35 },
+        { "gateId": "gate_add3", "weight": 15 },
+        { "gateId": "gate_mul2", "weight": 10 }
+      ],
+      "right": [
+        { "gateId": "gate_soldier_add1", "weight": 30 },
+        { "gateId": "gate_pangyo_add2", "weight": 20 },
+        { "gateId": "gate_unemployed_add1", "weight": 15 },
+        { "gateId": "gate_developer_add1", "weight": 20 },
+        { "gateId": "gate_add2", "weight": 15 }
+      ]
+    },
+    {
+      "maxAuthoredZ": 240,
+      "left": [
+        { "gateId": "gate_add2", "weight": 15 },
+        { "gateId": "gate_add3", "weight": 25 },
+        { "gateId": "gate_mul2", "weight": 60 }
+      ],
+      "right": [
+        { "gateId": "gate_officer_add1", "weight": 10 },
+        { "gateId": "gate_pangyo_damage2x", "weight": 30 },
+        { "gateId": "gate_attack_amp20", "weight": 60 }
+      ]
+    },
+    {
+      "maxAuthoredZ": 99999,
+      "left": [
+        { "gateId": "gate_add3", "weight": 15 },
+        { "gateId": "gate_mul2", "weight": 85 }
+      ],
+      "right": [
+        { "gateId": "gate_pangyo_damage2x", "weight": 30 },
+        { "gateId": "gate_attack_amp20", "weight": 70 }
+      ]
+    }
+  ],
+  "endless": {
+    "startProgress": 1,
+    "influxStepPerStage": 0.08,
+    "hpStepPerStage": 0.2
+  }
+}

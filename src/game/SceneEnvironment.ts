@@ -6,6 +6,7 @@ import {
   Scene,
   StandardMaterial,
 } from "@babylonjs/core"
+import { DIFFICULTY_PROFILES, getDifficultyStageLength } from "./data/difficultyData"
 import { LEVEL_1 } from "./data/levelData"
 import type { QualitySettings } from "./systems/QualitySystem"
 import { ROAD_FORWARD_VIEW_BUFFER, ROAD_SEGMENT_DEPTH } from "./WorldGeometry"
@@ -29,6 +30,13 @@ declare global {
       readonly exposure: number
       readonly contrast: number
     }
+    __squadRushRoadDebug?: {
+      readonly baseStageLength: number
+      readonly maxFiniteStageLength: number
+      readonly environmentDepth: number
+      readonly roadSegmentCount: number
+      readonly roadCoverageEndZ: number
+    }
   }
 }
 
@@ -37,7 +45,7 @@ export function setupEnvironment(scene: Scene, quality: QualitySettings): void {
   sky.infiniteDistance = true
   sky.isPickable = false
   const skyMat = new StandardMaterial("skyMat", scene)
-  skyMat.emissiveColor = new Color3(0.53, 0.81, 0.98)
+  skyMat.emissiveColor = new Color3(0.08, 0.09, 0.1)
   skyMat.disableLighting = true
   skyMat.disableDepthWrite = true
   skyMat.backFaceCulling = false
@@ -60,35 +68,28 @@ export function setupEnvironment(scene: Scene, quality: QualitySettings): void {
   beaconMat.emissiveColor = new Color3(0.9, 0.32, 0.04)
 
   const waterMat = new StandardMaterial("waterMat", scene)
-  waterMat.diffuseColor = new Color3(0.02, 0.37, 0.48)
-  waterMat.emissiveColor = new Color3(0.01, 0.08, 0.1)
-  waterMat.specularColor = new Color3(0.16, 0.58, 0.72)
+  waterMat.diffuseColor = new Color3(0.08, 0.09, 0.1)
+  waterMat.emissiveColor = new Color3(0.012, 0.012, 0.014)
+  waterMat.specularColor = new Color3(0.05, 0.05, 0.055)
 
   const sideWallMat = new StandardMaterial("sideWallMat", scene)
-  sideWallMat.diffuseColor = new Color3(0.54, 0.58, 0.6)
-  sideWallMat.specularColor = new Color3(0.22, 0.24, 0.26)
+  sideWallMat.diffuseColor = new Color3(0.24, 0.25, 0.26)
+  sideWallMat.specularColor = new Color3(0.08, 0.085, 0.09)
 
   const warningMat = new StandardMaterial("warningStripMat", scene)
   warningMat.diffuseColor = new Color3(1, 0.68, 0.12)
   warningMat.emissiveColor = new Color3(0.42, 0.18, 0.02)
 
-  const containerMat = new StandardMaterial("containerMat", scene)
-  containerMat.diffuseColor = new Color3(0.78, 0.39, 0.08)
-  containerMat.specularColor = new Color3(0.12, 0.08, 0.04)
-
   const seamMat = new StandardMaterial("roadPanelSeamMat", scene)
   seamMat.diffuseColor = new Color3(0.08, 0.1, 0.12)
   seamMat.specularColor = new Color3(0.01, 0.01, 0.01)
 
-  const wearMat = new StandardMaterial("roadWearMat", scene)
-  wearMat.diffuseColor = new Color3(0.14, 0.16, 0.18)
-  wearMat.specularColor = new Color3(0.02, 0.02, 0.02)
-
   const capMat = new StandardMaterial("barrierCapMat", scene)
-  capMat.diffuseColor = new Color3(0.72, 0.74, 0.73)
-  capMat.specularColor = new Color3(0.2, 0.22, 0.24)
+  capMat.diffuseColor = new Color3(0.34, 0.35, 0.34)
+  capMat.specularColor = new Color3(0.1, 0.1, 0.1)
 
-  const environmentDepth = LEVEL_1.totalLength + ROAD_FORWARD_VIEW_BUFFER
+  const maxFiniteStageLength = getMaxFiniteStageLength()
+  const environmentDepth = maxFiniteStageLength + ROAD_FORWARD_VIEW_BUFFER
   const roadSegmentCount = Math.ceil(environmentDepth / ROAD_SEGMENT_DEPTH)
   for (let index = 0; index <= roadSegmentCount; index += 1) {
     const z = index * ROAD_SEGMENT_DEPTH
@@ -99,11 +100,6 @@ export function setupEnvironment(scene: Scene, quality: QualitySettings): void {
     const roadPanelSeam = MeshBuilder.CreateBox(`road_panel_seam_${index}`, { width: 13.6, height: 0.035, depth: 0.08 }, scene)
     roadPanelSeam.material = seamMat
     roadPanelSeam.position.set(0, 0.035, z + 4.92)
-
-    const roadWearPatch = MeshBuilder.CreateBox(`road_wear_patch_${index}`, { width: 2.1, height: 0.032, depth: 2.9 }, scene)
-    roadWearPatch.material = wearMat
-    roadWearPatch.rotation.y = index % 2 === 0 ? 0.04 : -0.05
-    roadWearPatch.position.set(index % 2 === 0 ? -2.6 : 2.7, 0.038, z - 0.7)
 
     const leftRail = MeshBuilder.CreateBox(`rail_l_${index}`, { width: 0.22, height: 0.28, depth: 9 }, scene)
     leftRail.material = railMat
@@ -141,13 +137,6 @@ export function setupEnvironment(scene: Scene, quality: QualitySettings): void {
       warningStrip.position.set(x * 0.86, 0.11, z + 1.2)
     }
 
-    if (index % 5 === 2) {
-      const containerX = index % 10 === 2 ? -10.2 : 10.2
-      const container = MeshBuilder.CreateBox(`container_${index}`, { width: 2.6, height: 1.55, depth: 4.8 }, scene)
-      container.material = containerMat
-      container.rotation.y = containerX < 0 ? 0.1 : -0.1
-      container.position.set(containerX, 0.58, z + 0.4)
-    }
   }
 
   for (const x of [-18, 18]) {
@@ -157,14 +146,26 @@ export function setupEnvironment(scene: Scene, quality: QualitySettings): void {
   }
 
   freezeEnvironmentMeshes(scene)
+  window.__squadRushRoadDebug = {
+    baseStageLength: LEVEL_1.totalLength,
+    maxFiniteStageLength,
+    environmentDepth,
+    roadSegmentCount,
+    roadCoverageEndZ: roadSegmentCount * ROAD_SEGMENT_DEPTH,
+  }
   applyGraphicsPolicy(scene, quality)
+}
+
+function getMaxFiniteStageLength(): number {
+  return Math.max(...Object.values(DIFFICULTY_PROFILES)
+    .filter((difficulty) => !difficulty.endless)
+    .map((difficulty) => getDifficultyStageLength(LEVEL_1.totalLength, difficulty)))
 }
 
 function freezeEnvironmentMeshes(scene: Scene): void {
   const staticPrefixes = [
     "road_",
     "road_panel_seam_",
-    "road_wear_patch_",
     "rail_",
     "lane_line_",
     "lane_reflector_",
@@ -172,7 +173,6 @@ function freezeEnvironmentMeshes(scene: Scene): void {
     "side_wall_",
     "barrier_cap_",
     "warning_strip_",
-    "container_",
     "water_plane_",
   ]
 

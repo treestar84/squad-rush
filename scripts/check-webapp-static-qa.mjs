@@ -72,16 +72,26 @@ function assertManifest(manifest) {
   }
 }
 
-function assertSquadCap({ squadSource, gameSource, hudSource, qualitySource }) {
-  assertQa(squadSource.includes("MAX_SQUAD_SOLDIERS = 30"), "Squad max cap must be 30")
-  assertQa(squadSource.includes("this.maxSoldiers - this.soldiers.length"), "Squad add path must clamp to remaining capacity")
+function assertSquadCap({ rosterSource, squadSource, progressionSource, gameSource, presenterSource, hudSource, qualitySource }) {
+  assertQa(rosterSource.includes("DEFENSE_SQUAD_LIMIT = 20"), "Defense active squad cap must be 20")
+  assertQa(squadSource.includes("MAX_SQUAD_SOLDIERS = 60"), "Visual squad safety ceiling must be 60")
+  assertQa(squadSource.includes("this.squadLimit - this.totalRosterCount"), "Squad add path must clamp to remaining logical capacity")
+  assertQa(squadSource.includes("addDefenseReinforcements"), "Defense overflow must route into the reserve progression")
+  assertQa(squadSource.includes("defenseReserveUnemployed"), "Defense unemployed reserve counter missing")
+  assertQa(progressionSource.includes("DEFENSE_RESERVE_PROMOTION_COST = 10"), "Defense reserve promotion cost must be 10")
+  assertQa(progressionSource.includes("UNIT_TYPES.general") && progressionSource.includes("UNIT_TYPES.ai"), "Defense upper-tier branches are incomplete")
   assertQa(squadSource.includes("get soldierCapacity()"), "Squad capacity getter missing")
   assertQa(squadSource.includes("get isAtMaxSoldiers()"), "Squad max state getter missing")
-  assertQa(gameSource.includes("soldierCapacity * 16"), "Projectile pool must use capped squad capacity")
-  assertQa(gameSource.includes("soldierMaxed: this.squad.isAtMaxSoldiers"), "HUD stats must expose squad max state")
+  assertQa(squadSource.includes("maxFireEmitters"), "Large squads must cap projectile emitters independently from visible members")
+  assertQa(gameSource.includes("soldierCapacity * 16"), "Gate Attack projectile pool must use capped squad capacity")
+  assertQa(gameSource.includes("DEFENSE_PROJECTILE_CAPACITY = 64"), "Defense must keep a bounded compact projectile pool")
+  assertQa(gameSource.includes("getDefenseSquadVisualCapacity") && gameSource.includes("return 24"), "Defense must cap expensive visual actors without changing attack presets")
+  assertQa(presenterSource.includes("soldierMaxed: this.deps.squad.isAtMaxSoldiers"), "HUD stats must expose squad max state")
+  assertQa(presenterSource.includes("defenseProgression: this.deps.squad.getDefenseProgressionState()"), "HUD stats must expose defense reserve progression")
   assertQa(hudSource.includes("data-role=\"soldier-cap\""), "HUD soldier cap label missing")
+  assertQa(hudSource.includes("data-role=\"defense-reserve\""), "Defense reserve HUD panel missing")
   assertQa(hudSource.includes("\"MAX\""), "HUD max state label missing")
-  assertQa(qualitySource.includes("maxSoldiers: 30"), "Quality presets must not exceed the gameplay cap")
+  assertQa(qualitySource.includes("maxSoldiers: 30"), "Shared quality presets must preserve the attack-mode visual budget")
 }
 
 async function assertIcons() {
@@ -205,13 +215,16 @@ async function main() {
   const sourceHtml = await readText("index.html")
   const manifest = parseJson(await readText("public/manifest.webmanifest"), "manifest")
   const vercel = parseJson(await readText("vercel.json"), "vercel.json")
+  const rosterSource = await readText("src/game/data/squadRosterData.ts")
   const squadSource = await readText("src/game/systems/SquadSystem.ts")
+  const progressionSource = await readText("src/game/systems/DefenseSquadProgression.ts")
   const gameSource = await readText("src/game/Game.ts")
+  const presenterSource = await readText("src/game/GameHudPresenter.ts")
   const hudSource = await readText("src/ui/Hud.ts")
   const qualitySource = await readText("src/game/systems/QualitySystem.ts")
   assertHtmlShell(sourceHtml)
   assertManifest(manifest)
-  assertSquadCap({ squadSource, gameSource, hudSource, qualitySource })
+  assertSquadCap({ rosterSource, squadSource, progressionSource, gameSource, presenterSource, hudSource, qualitySource })
   assertVercelHeaders(vercel)
   await assertIcons()
   await assertReadableFile("dist/index.html", 300)

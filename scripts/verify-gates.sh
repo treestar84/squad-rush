@@ -144,29 +144,29 @@ else
 fi
 
 if [ -f "scripts/check-first-gate-choice-qa.mjs" ] && \
-   grep -q '{ z: 38, leftGateId: "gate_add1", rightGateId: "gate_upgrade" }' src/game/data/gateData.ts && \
+   grep -q '{ z: 24, gateIds: \["gate_soldier_add1", "gate_pangyo_add2"\], rightBarrier: false }' src/game/data/gateData.ts && \
    grep -q "First gate" DESIGN.md && \
-   grep -q "first-gate-upgrade-feedback-mobile.png" scripts/check-first-gate-choice-qa.mjs && \
+   grep -q "first-gate-roster-feedback-mobile.png" scripts/check-first-gate-choice-qa.mjs && \
    npm run test:first-gate --silent >/dev/null; then
   gate "G52" "첫 게이트 즉시 체감 보상 QA" "PASS"
 else
-  gate "G52" "첫 게이트 즉시 체감 보상 QA" "FAIL" "first gate +1/UPGRADE, HUD popup/stat feedback real-browser QA 실패"
+  gate "G52" "첫 게이트 즉시 체감 보상 QA" "FAIL" "first gate soldier/Pangyo, HUD popup/stat feedback real-browser QA 실패"
 fi
 
 if [ -f "scripts/check-advanced-gate-qa.mjs" ] && \
-   grep -q "UNUSED_GATE_CONFIGS" src/game/data/gateData.ts && \
-   grep -q "FIRE +20%" src/game/data/gateData.ts && \
-   grep -q "RANGE +20%" src/game/data/gateData.ts && \
-   grep -q "EXPLOSION" src/game/data/gateData.ts && \
-   grep -q "PIERCE" src/game/data/gateData.ts && \
+   grep -q "LEFT_GATE_REWARD_POOL" src/game/data/gateData.ts && \
+   grep -q "RIGHT_GATE_REWARD_POOL" src/game/data/gateData.ts && \
+   grep -q "gate_attack_amp20" src/game/data/gateData.ts && \
+   grep -q "gate_pangyo_damage2x" src/game/data/gateData.ts && \
+   ! grep -q "gate_mul3" src/game/data/gateData.ts && \
    ! grep -q "applyPierceDamage" src/game/systems/ShootingSystem.ts && \
    ! grep -q "applyExplosionDamage" src/game/systems/ShootingSystem.ts && \
    ! grep -q "explosionGlow" src/game/systems/ProjectileStyling.ts && \
-   grep -q "Advanced gates" DESIGN.md && \
+   grep -q "Mystery reward pacing" DESIGN.md && \
    npm run test:advanced-gates --silent >/dev/null; then
   gate "G54" "고급 발사 효과 비활성/업그레이드 전투 QA" "PASS"
 else
-  gate "G54" "고급 발사 효과 비활성/업그레이드 전투 QA" "FAIL" "FIRE/RANGE/EXPLOSION/PIERCE 미사용 처리 또는 upgrade browser QA 실패"
+  gate "G54" "미스터리 게이트/영구 보상 전투 QA" "FAIL" "reward pools, hidden reveal, rare permanent rewards, browser QA 실패"
 fi
 
 # G7 — MonsterWaveSystem ObjectPool
@@ -182,17 +182,19 @@ else
 fi
 
 if [ -f "src/game/systems/MonsterWaveSystem.ts" ]; then
-  if grep -q "MID_BOSS_SPAWN_Z = \\[104, 154, 204, 258, 318\\]" src/game/systems/MonsterWaveSystem.ts && \
+  if grep -q "MID_BOSS_SPAWN_Z = \\[96, 116, 136, 156, 176, 196, 216, 236, 256, 276, 296, 316, 336, 356\\]" src/game/systems/MonsterWaveSystem.ts && \
+     grep -q "getMidBossCount" src/game/systems/MonsterWaveSystem.ts && \
+     grep -q "maxCount: 1" src/game/systems/MonsterWaveSystem.ts && \
      grep -q "isMidBossSpawn" src/game/systems/MonsterWaveSystem.ts && \
      grep -q "MONSTER_CONFIGS.tank" src/game/systems/MonsterWaveSystem.ts && \
      grep -q "speed: 0.12" src/game/data/monsterData.ts && \
      ! grep -q "SEGMENT_TYPES.boss" src/game/data/levelData.ts; then
-    gate "G8" "일반 웨이브 내 중간보스 5회 등장" "PASS"
+    gate "G8" "일반 웨이브 내 중간보스 고빈도 등장" "PASS"
   else
-    gate "G8" "일반 웨이브 내 중간보스 5회 등장" "FAIL" "25% 이후 5회 tank wave spawn 또는 boss segment 제거 누락"
+    gate "G8" "일반 웨이브 내 중간보스 고빈도 등장" "FAIL" "25% 이후 고빈도 tank wave spawn 또는 boss segment 제거 누락"
   fi
 else
-  gate "G8" "일반 웨이브 내 중간보스 5회 등장" "FAIL" "파일 없음"
+  gate "G8" "일반 웨이브 내 중간보스 고빈도 등장" "FAIL" "파일 없음"
 fi
 
 # G9 — FXSystem 파티클 3종
@@ -247,9 +249,11 @@ else
 fi
 
 if [ -f "scripts/check-loading-screen-qa.mjs" ] && \
-   grep -q "MISSION BOOT" src/ui/LoadingScreen.ts && \
+   grep -q "판교에 포탈이 열리고" src/ui/LoadingScreen.ts && \
+   grep -q "/assets/ui/start-title-logo.png" src/ui/LoadingScreen.ts && \
    grep -q "role=\"progressbar\"" src/ui/LoadingScreen.ts && \
    grep -q "stageForProgress" src/ui/LoadingScreen.ts && \
+   grep -q ".loading-message" src/styles/global.css && \
    grep -q ".loading-metrics" src/styles/global.css && \
    grep -q "Loading QA" DESIGN.md && \
    grep -q "loading-screen-mobile.png" scripts/check-loading-screen-qa.mjs && \
@@ -374,26 +378,26 @@ fi
 
 if grep -q "water_plane" src/game/SceneEnvironment.ts && \
    grep -q "side_wall" src/game/SceneEnvironment.ts && \
-   grep -q "container_" src/game/SceneEnvironment.ts && \
+   ! grep -q "container_" src/game/SceneEnvironment.ts && \
    grep -q "warning_strip" src/game/SceneEnvironment.ts && \
    grep -q "addAuthoredEnvironmentSetpieces" src/game/EnvironmentSetpieces.ts && \
-   grep -q "authored_road_segment" src/game/EnvironmentSetpieces.ts && \
+   ! grep -q "authored_road_segment" src/game/EnvironmentSetpieces.ts && \
    ! grep -q "authored_gate_frame" src/game/EnvironmentSetpieces.ts && \
    grep -q "addAuthoredEnvironmentSetpieces" src/game/Game.ts; then
-  gate "G17" "전장 환경 수면/방벽/컨테이너/경고 스트립" "PASS"
+  gate "G17" "전장 환경 수면/방벽/경고 스트립" "PASS"
 else
-  gate "G17" "전장 환경 수면/방벽/컨테이너/경고 스트립" "FAIL" "환경 세트피스/도로 authored layer 또는 gate frame 비활성 정책 누락"
+  gate "G17" "전장 환경 수면/방벽/경고 스트립" "FAIL" "환경 세트피스 또는 floor-attached box/road/gate frame 비활성 정책 누락"
 fi
 
 if grep -q "road_panel_seam" src/game/SceneEnvironment.ts && \
-   grep -q "road_wear_patch" src/game/SceneEnvironment.ts && \
+   ! grep -q "road_wear_patch" src/game/SceneEnvironment.ts && \
    grep -q "lane_reflector" src/game/SceneEnvironment.ts && \
    grep -q "barrier_cap" src/game/SceneEnvironment.ts && \
    grep -q "freezeEnvironmentMeshes" src/game/SceneEnvironment.ts && \
    grep -q "freezeWorldMatrix" src/game/SceneEnvironment.ts; then
-  gate "G37" "도로 패널/마모/반사등/방벽 캡 전장 밀도" "PASS"
+  gate "G37" "도로 패널/반사등/방벽 캡 전장 밀도" "PASS"
 else
-  gate "G37" "도로 패널/마모/반사등/방벽 캡 전장 밀도" "FAIL" "road detail setpiece/static freeze 누락"
+  gate "G37" "도로 패널/반사등/방벽 캡 전장 밀도" "FAIL" "road detail setpiece/static freeze 또는 floor patch 제거 정책 누락"
 fi
 
 if grep -q "addImpulse" src/game/CameraController.ts && \
@@ -612,7 +616,7 @@ if grep -q "BulletStyle" src/game/systems/ProjectileSystem.ts && \
    grep -q "configureBulletStyle" src/game/systems/ProjectileSystem.ts && \
    grep -q "configureMuzzleFlash" src/game/systems/ProjectileSystem.ts && \
    grep -q "const power = Math.min" src/game/systems/ProjectileStyling.ts && \
-   grep -q "effectiveRange: range" src/game/systems/ShootingSystem.ts && \
+   grep -Eq "effectiveRange: range|bulletStyle.effectiveRange = range" src/game/systems/ShootingSystem.ts && \
    ! grep -q "rangeBoost" src/game/systems/ShootingSystem.ts && \
    ! grep -q "fireBoost" src/game/systems/ShootingSystem.ts; then
   gate "G25" "공격 업그레이드 반응형 탄환 시각 피드백" "PASS"
@@ -697,17 +701,20 @@ else
   gate "G30" "게이트 3D 구조물/선택 유도 연출" "FAIL" "gate pad/beam/pylon/backplate/billboard/ring/arrow/depth animation 누락"
 fi
 
-if grep -q "MID_BOSS_SPAWN_Z = \\[104, 154, 204, 258, 318\\]" src/game/systems/MonsterWaveSystem.ts && \
+if grep -q "MID_BOSS_SPAWN_Z = \\[96, 116, 136, 156, 176, 196, 216, 236, 256, 276, 296, 316, 336, 356\\]" src/game/systems/MonsterWaveSystem.ts && \
+   grep -q "getMidBossCount" src/game/systems/MonsterWaveSystem.ts && \
+   grep -q "maxCount: 1" src/game/systems/MonsterWaveSystem.ts && \
    grep -q "MONSTER_CONFIGS.tank" src/game/systems/MonsterWaveSystem.ts && \
    grep -q "hp: 42" src/game/data/monsterData.ts && \
    grep -q "speed: 0.12" src/game/data/monsterData.ts && \
    grep -q "monster_variant_tank" src/game/pools/MonsterVisualFactory.ts && \
    grep -q "Mid-boss" DESIGN.md && \
-   ! grep -q "showBossWarning" src/ui/Hud.ts && \
-   ! grep -q "bossHpVisible" src/ui/Hud.ts; then
+   grep -q "monster_mid_boss_hp" src/game/pools/MonsterPool.ts && \
+   grep -q "lowestMidBossHpBarY" src/game/systems/MonsterWaveSystem.ts && \
+   ! grep -q "data-role=\\\"boss\\\"" src/ui/Hud.ts; then
   gate "G31" "중간보스 일반 웨이브 혼합 등장" "PASS"
 else
-  gate "G31" "중간보스 일반 웨이브 혼합 등장" "FAIL" "5회 tank wave spawn 또는 boss HUD 비활성 처리 누락"
+  gate "G31" "중간보스 일반 웨이브 혼합 등장" "FAIL" "고빈도 giant doguri spawn 또는 머리 위 HP bar 처리 누락"
 fi
 
 if [ -f "scripts/check-boss-peak-qa.mjs" ] && \
@@ -720,16 +727,16 @@ else
   gate "G50" "중간보스 웨이브 혼합 실브라우저 QA" "FAIL" "mid-boss wave screenshot, no warning/HUD, FPS, overflow 검증 실패"
 fi
 
-if grep -q "MAX_FRAME_DELTA_SECONDS = 0.2" src/game/GameLoop.ts && \
-   grep -q "MAX_FRAME_CATCHUP_SECONDS = 0.5" src/game/GameLoop.ts && \
+if grep -q "MAX_FRAME_DELTA_SECONDS = 0.25" src/game/GameLoop.ts && \
+   ! grep -q "MAX_FRAME_CATCHUP_SECONDS" src/game/GameLoop.ts && \
    grep -q "lastFrameTime = performance.now" src/game/GameLoop.ts && \
    grep -q "const now = performance.now" src/game/GameLoop.ts && \
-   grep -q "let remainingTime = Math.min((now - this.lastFrameTime) / 1000, MAX_FRAME_CATCHUP_SECONDS)" src/game/GameLoop.ts && \
-   grep -q "while (remainingTime > MIN_FRAME_STEP_SECONDS)" src/game/GameLoop.ts && \
-   grep -q "Math.min(remainingTime, MAX_FRAME_DELTA_SECONDS)" src/game/GameLoop.ts; then
-  gate "G32" "저FPS에서도 느린 진행 속도 유지" "PASS"
+   grep -q "const dt = Math.min((now - this.lastFrameTime) / 1000, MAX_FRAME_DELTA_SECONDS)" src/game/GameLoop.ts && \
+   ! grep -q "while (remainingTime" src/game/GameLoop.ts && \
+   npm run test:defense-performance --silent >/dev/null; then
+  gate "G32" "4FPS 실시간 진행/프레임 캐치업 렉 방지" "PASS"
 else
-  gate "G32" "저FPS에서도 느린 진행 속도 유지" "FAIL" "bounded catch-up dt loop 누락"
+  gate "G32" "4FPS 실시간 진행/프레임 캐치업 렉 방지" "FAIL" "single-pass bounded frame update 또는 방어 성능 계약 누락"
 fi
 
 RUN_SECONDS=$(awk '
@@ -763,41 +770,44 @@ else
   gate "G34" "전투 데미지 숫자 집계 피드백" "FAIL" "onDamage/queue/flush/showDamage/hud-damage 누락"
 fi
 
-if grep -q "pickup_crate" src/game/systems/BonusPickupSystem.ts && \
+if ! grep -q "pickup_crate" src/game/systems/BonusPickupSystem.ts && \
    grep -q "pickup_orb_shell" src/game/systems/BonusPickupSystem.ts && \
    grep -q "pickup_reward_beam" src/game/systems/BonusPickupSystem.ts && \
    grep -q "pickup_orbit_spark" src/game/systems/BonusPickupSystem.ts && \
    grep -q "pickup_compact_label_backplate" src/game/systems/BonusPickupSystem.ts && \
-   grep -q "pickupSupplyShellMat" src/game/systems/BonusPickupSystem.ts && \
-   grep -q "pickup_reward_gem" src/game/systems/BonusPickupSystem.ts && \
-   grep -q "pickup_supply_band" src/game/systems/BonusPickupSystem.ts && \
+   ! grep -q "pickupSupplyShellMat" src/game/systems/BonusPickupSystem.ts && \
+   ! grep -q "pickup_reward_gem" src/game/systems/BonusPickupSystem.ts && \
+   ! grep -q "pickup_supply_band" src/game/systems/BonusPickupSystem.ts && \
    grep -q "labelBackMat.alpha = 0.28" src/game/systems/BonusPickupSystem.ts && \
    grep -q "pickup_beacon" src/game/systems/BonusPickupSystem.ts && \
    grep -q "pickup_chevron" src/game/systems/BonusPickupSystem.ts && \
    grep -q "pickup_shadow" src/game/systems/BonusPickupSystem.ts && \
    grep -q "BILLBOARDMODE_ALL" src/game/systems/BonusPickupSystem.ts && \
    grep -q "PICKUP_COLLECT_RADIUS_SQUARED = 3.2" src/game/systems/BonusPickupSystem.ts && \
-   grep -q "pickup_soldier_reward" src/game/systems/BonusPickupSystem.ts && \
+   grep -q "pickup_unit_reward" src/game/systems/BonusPickupSystem.ts && \
+   grep -q "pickup_authored_pangyo_marker" src/game/systems/PickupSoldierVisual.ts && \
    grep -q "Idle" src/game/systems/PickupSoldierVisual.ts && \
-   grep -q "width: 1.72" src/game/systems/BonusPickupSystem.ts && \
+   grep -q "pangyo: 18" src/game/systems/BonusPickupSchedule.ts && \
+   grep -q "soldier: 2" src/game/systems/BonusPickupSchedule.ts && \
    grep -q "diameter: 2.62" src/game/systems/BonusPickupSystem.ts && \
    grep -q "height: 5.2" src/game/systems/BonusPickupSystem.ts && \
-   grep -q "idle soldier silhouette" DESIGN.md; then
+   grep -q "90:10" DESIGN.md; then
   gate "G35" "몬스터 흐름 속 보너스 아이템 3D 보상 오브젝트" "PASS"
 else
-  gate "G35" "몬스터 흐름 속 보너스 아이템 3D 보상 오브젝트" "FAIL" "soldier reward visual 또는 upgrade crate/gem/beam/orbit/backplate/beacon/chevron/shadow/collect-radius 누락"
+  gate "G35" "몬스터 흐름 속 보너스 아이템 3D 보상 오브젝트" "FAIL" "character reward visual, Pangyo/Soldier 90:10 ratio, beam/orbit/backplate/beacon/chevron/shadow/collect-radius 누락"
 fi
 
 if [ -f "scripts/check-pickup-readability-qa.mjs" ] && \
    grep -q "pickup-readability-mobile-combat.png" scripts/check-pickup-readability-qa.mjs && \
    grep -q "__squadRushPickupDebug" src/game/systems/BonusPickupSystem.ts && \
-   grep -q "pickup_soldier_reward" scripts/check-pickup-readability-qa.mjs && \
+   grep -q "pickup_unit_reward" scripts/check-pickup-readability-qa.mjs && \
+   grep -q "pickup_authored_pangyo_marker" scripts/check-pickup-readability-qa.mjs && \
    grep -q "pickup_reward_beam" scripts/check-pickup-readability-qa.mjs && \
-   grep -q "idle soldier silhouette" DESIGN.md && \
+   grep -q "90:10" DESIGN.md && \
    npm run test:pickups --silent >/dev/null; then
   gate "G56" "보상 아이템 탄환 분리 실브라우저 QA" "PASS"
 else
-  gate "G56" "보상 아이템 탄환 분리 실브라우저 QA" "FAIL" "pickup soldier reward visual, active-scene debug, mobile screenshot QA 실패"
+  gate "G56" "보상 아이템 탄환 분리 실브라우저 QA" "FAIL" "pickup character reward visual, active-scene debug, mobile screenshot QA 실패"
 fi
 
 if [ -f "src/game/systems/ObstacleSystem.ts" ] && \
@@ -1007,7 +1017,7 @@ fi
 if [ -f "scripts/check-environment-setpiece-qa.mjs" ] && \
    grep -q "side_service_deck" src/game/EnvironmentSetpieces.ts && \
    ! grep -q "combat_gantry_beam" src/game/EnvironmentSetpieces.ts && \
-   grep -q "authored_side_cargo" src/game/EnvironmentSetpieces.ts && \
+   ! grep -q "authored_side_cargo" src/game/EnvironmentSetpieces.ts && \
    grep -q "__squadRushEnvironmentDebug" src/game/EnvironmentSetpieces.ts && \
    grep -q "GATE_VISUAL_SCALE = 0.7" src/game/systems/GateVisualFactory.ts && \
    grep -q "GATE_LEFT_X = -4.2" src/game/systems/GateVisualFactory.ts && \
@@ -1016,7 +1026,58 @@ if [ -f "scripts/check-environment-setpiece-qa.mjs" ] && \
    npm run test:environment --silent >/dev/null; then
   gate "G61" "전장 환경 서비스덱/분리 게이트 세트피스 QA" "PASS"
 else
-  gate "G61" "전장 환경 서비스덱/분리 게이트 세트피스 QA" "FAIL" "side service decks/cargo/authored road/no gate connector browser QA 실패"
+  gate "G61" "전장 환경 서비스덱/분리 게이트 세트피스 QA" "FAIL" "side service decks/no cargo/authored road/no gate connector browser QA 실패"
+fi
+
+if [ -f "scripts/check-defense-castle-environment-qa.mjs" ] && \
+   grep -q "DefenseCastleEnvironmentSystem" src/game/Game.ts && \
+   grep -q "defense_castle_cobblestone_road" src/game/systems/DefenseCastleEnvironmentSystem.ts && \
+   grep -q "environment/defense/portal.glb" src/game/systems/DefenseCastleEnvironmentSystem.ts && \
+   grep -q "/assets/textures/defense_cobblestone.webp" src/game/systems/DefenseCastleEnvironmentKit.ts && \
+   grep -q "__squadRushDefenseCastleDebug" src/game/systems/DefenseCastleEnvironmentSystem.ts && \
+   grep -q "defense-castle-environment-desktop.png" scripts/check-defense-castle-environment-qa.mjs && \
+   grep -q "Defense castle environment" DESIGN.md && \
+   npm run test:defense-castle --silent >/dev/null; then
+  gate "G62" "방어 모드 성문/포탈 환경 QA" "PASS"
+else
+  gate "G62" "방어 모드 성문/포탈 환경 QA" "FAIL" "defense castle road/buildings/portal/texture browser QA 실패"
+fi
+
+if [ -f "scripts/check-defense-squad-progression-qa.mjs" ] && \
+   grep -q "DEFENSE_SQUAD_LIMIT = 20" src/game/data/squadRosterData.ts && \
+   grep -q "DEFENSE_RESERVE_PROMOTION_COST = 10" src/game/systems/DefenseSquadProgression.ts && \
+   grep -q "UNIT_TYPES.general" src/game/systems/DefenseSquadProgression.ts && \
+   grep -q "UNIT_TYPES.ai" src/game/systems/DefenseSquadProgression.ts && \
+   grep -q "addDefenseReinforcements" src/game/systems/SquadSystem.ts && \
+   grep -q "data-role=\"defense-reserve\"" src/ui/Hud.ts && \
+   npm run test:defense-progression --silent >/dev/null; then
+  gate "G63" "방어 20명/백수 예비/무손실 상위 전직 QA" "PASS"
+else
+  gate "G63" "방어 20명/백수 예비/무손실 상위 전직 QA" "FAIL" "20명 cap, 백수 10명 자동승급, 병사 환급, 지휘/기술 트리 또는 HUD 브라우저 QA 실패"
+fi
+
+if [ -f "scripts/check-defense-fire-formation-contract.mjs" ] && \
+   grep -q "DEFENSE_MAX_SHOTS_PER_UPDATE = 2" src/game/systems/ShootingSystem.ts && \
+   grep -q "defenseStaggerIntervalSeconds" src/game/systems/ShootingSystem.ts && \
+   grep -q "formationMaxColumns: 3" src/game/Game.ts && \
+   grep -q "formationSpacing: 0.42" src/game/Game.ts && \
+   grep -q "formationRowDepth: 0.21" src/game/Game.ts && \
+   npm run test:defense-fire-formation --silent >/dev/null; then
+  gate "G64" "방어 8-emitter 시간차 사격/20명 3열 대형 계약" "PASS"
+else
+  gate "G64" "방어 8-emitter 시간차 사격/20명 3열 대형 계약" "FAIL" "31.25ms 위상, 프레임당 최대 2발, DPS 보존 또는 3열 7행 대형 계약 실패"
+fi
+
+if [ -f "scripts/check-mid-boss-absorption-contract.mjs" ] && \
+   grep -q "TANK_PROJECTILE_HIT_RADIUS_PADDING_RATIO = 1.12" src/game/pools/MonsterPool.ts && \
+   grep -q "TANK_PROJECTILE_HIT_HALF_DEPTH_RATIO = 1.55" src/game/pools/MonsterPool.ts && \
+   grep -q "tankReservationCounts" src/game/systems/ShootingSystem.ts && \
+   grep -q "tankShotsWhileReserved" src/game/systems/ShootingHitDebug.ts && \
+   grep -q "trail.stopAtImpact ? 0 : trail.tailClearDistance" src/game/systems/ProjectileSystem.ts && \
+   npm run test:mid-boss-absorption --silent >/dev/null; then
+  gate "G65" "중간보스 외형 히트볼륨/다중 탄환 흡수 계약" "PASS"
+else
+  gate "G65" "중간보스 외형 히트볼륨/다중 탄환 흡수 계약" "FAIL" "외형 12% 횡패딩, 55% 깊이패딩, 동시 예약 흡수 또는 외곽 좌우 통과 경계 실패"
 fi
 
 # ── 결과 출력 ──────────────────────────────────────────────

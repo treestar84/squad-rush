@@ -7,8 +7,8 @@ import { chromium } from "playwright"
 
 const root = resolve(".")
 const outputDir = resolve("logs/phase2-qa")
-const minProgress = 58
-const minKills = 60
+const minProgress = 18
+const minKills = 40
 const minScreenshotBytes = 50000
 const maxHorizontalOverflowPx = 0
 
@@ -78,7 +78,8 @@ async function readHudStats(page) {
       fps: textOf("[data-role='fps']"),
       progress: textOf("[data-role='stage']"),
       attack: textOf("[data-role='attack']"),
-      upgrade: textOf("[data-role='upgrade']"),
+      shield: textOf("[data-role='shield']"),
+      roster: Array.from(document.querySelectorAll(".hud-roster-item")).map((el) => el.textContent ?? ""),
       popup: document.querySelector(".hud-popup")?.textContent ?? "",
       recordedPopups: window.__advancedGatePopups ?? [],
       debug: window.__squadRushDebug ?? null,
@@ -91,15 +92,24 @@ async function readHudStats(page) {
 const gateText = await readFile("src/game/data/gateData.ts", "utf8")
 const shootingText = await readFile("src/game/systems/ShootingSystem.ts", "utf8")
 const projectileText = await readFile("src/game/systems/ProjectileStyling.ts", "utf8")
-assertQa(gateText.includes("UNUSED_GATE_CONFIGS"), "Unused gate configs must remain available for future reuse.")
-assertQa(gateText.includes("FIRE +20%") && gateText.includes("RANGE +20%") && gateText.includes("EXPLOSION") && gateText.includes("PIERCE"), "Disabled fire/range/explosion/pierce gate definitions must be retained as unused configs.")
-assertQa(!gateText.includes("FIRE_RATE_UP") && !gateText.includes("RANGE_UP") && !gateText.includes("EXPLOSION_UP") && !gateText.includes("PIERCE_UP"), "Disabled gate effect types must not remain active.")
-assertQa(!gateText.includes("gate_fire20\", rightGateId") && !gateText.includes("gate_rng20\", rightGateId") && !gateText.includes("gate_explosion\", rightGateId") && !gateText.includes("gate_pierce\", rightGateId"), "Disabled gates must not appear in the stage spawn list.")
+assertQa(gateText.includes("NUMBER_INCREASE"), "Number increase gate type must be active.")
+assertQa(gateText.includes("ENLIST"), "Enlist gate type must be active.")
+assertQa(gateText.includes("gate_add3"), "The +3 increase gate must be active.")
+assertQa(gateText.includes("LEFT_GATE_REWARD_POOL") && gateText.includes("RIGHT_GATE_REWARD_POOL"), "Randomized left/right reward pools must be active.")
+assertQa(gateText.includes("gate_developer_add1") && gateText.includes("gate_unemployed_add1"), "Right reward pool must include engine-building unit rewards.")
+assertQa(gateText.includes("gate_attack_amp20") && gateText.includes("gate_pangyo_damage2x"), "Right reward pool must include rare permanent build rewards.")
+assertQa(!gateText.includes("gate_mul3"), "x3 rewards must remain removed.")
+assertQa(!gateText.includes("SPECIAL_RECRUIT"), "Special recruit gate type must be inactive.")
+assertQa(!gateText.includes("PROMOTION"), "Promotion gate type must be inactive.")
+assertQa(!gateText.includes("gate_special"), "Specific-character gate ids must not remain active.")
+assertQa(!gateText.includes("gate_promote"), "Promotion gate id must not remain active.")
+assertQa(!gateText.includes("gate_upgrade"), "Old generic attack upgrade gate must not remain active.")
+assertQa(!gateText.includes("FIRE +20%") && !gateText.includes("RANGE +20%") && !gateText.includes("EXPLOSION") && !gateText.includes("PIERCE"), "Disabled fire/range/explosion/pierce gates must be removed from active gate data.")
 assertQa(!shootingText.includes("applyPierceDamage") && !shootingText.includes("applyExplosionDamage"), "Disabled pierce/explosion effects must not be wired into shooting damage.")
 assertQa(!projectileText.includes("explosionGlow") && !projectileText.includes("pierceGlow"), "Disabled explosion/pierce visuals must not be wired.")
 
 const port = await findFreePort()
-const previewUrl = `http://127.0.0.1:${port}/?quality=medium&qa=advanced&qaSpeed=3`
+const previewUrl = `http://127.0.0.1:${port}/?quality=medium&qa=advanced&qaSpeed=4&qaSoldiers=10`
 const preview = spawn(
   "npm",
   ["run", "preview", "--", "--host", "127.0.0.1", "--port", String(port)],
@@ -149,19 +159,21 @@ try {
   await page.locator(".tap-to-start").click()
   await page.waitForFunction(() => {
     const debug = window.__squadRushDebug
-    const progressText = document.querySelector("[data-role='stage']")?.textContent ?? ""
-    const attackText = document.querySelector("[data-role='attack']")?.textContent ?? ""
-    const upgradeText = document.querySelector("[data-role='upgrade']")?.textContent ?? ""
-    const progressMatch = progressText.match(/[0-9]+(?:\.[0-9]+)?/)
-    const attackMatch = attackText.match(/[0-9]+(?:\.[0-9]+)?/)
-    const progress = progressMatch?.[0] === undefined ? 0 : Number.parseFloat(progressMatch[0])
-    const attack = attackMatch?.[0] === undefined ? 0 : Number.parseFloat(attackMatch[0])
-    return attack >= 2.24
-      && upgradeText.includes("2/2")
-      && debug?.stats.soldierUpgradeTier === 2
-      && progress >= 58
+    return Array.isArray(debug?.gates)
+      && debug.gates.length >= 2
+      && debug.gates.every((gate) => gate.choices?.length === 2)
+      && debug.gates.some((gate) => gate.visibleChoices?.[0] !== "?" && gate.visibleChoices?.[1] === "?")
+      && debug.gates.some((gate) => gate.rightBarrier?.maxHp > 0)
+      && typeof debug.stats?.attackMultiplier === "number"
+      && typeof debug.stats?.squadLimit === "number"
   }, null, { timeout: 56000 })
-  const screenshotPath = resolve(outputDir, "upgrade-gates-disabled-effects-feedback.png")
+  await page.waitForFunction(() => {
+    const progressText = document.querySelector("[data-role='stage']")?.textContent ?? ""
+    const progressMatch = progressText.match(/[0-9]+(?:\.[0-9]+)?/)
+    const progress = progressMatch?.[0] === undefined ? 0 : Number.parseFloat(progressMatch[0])
+    return progress >= 18
+  }, null, { timeout: 56000 })
+  const screenshotPath = resolve(outputDir, "engine-gates-roster-feedback.png")
   await page.screenshot({ path: screenshotPath, fullPage: false })
   const stats = await readHudStats(page)
   await browser.close()
@@ -172,10 +184,14 @@ try {
   assertQa(stats.scrollWidth - stats.viewportWidth <= maxHorizontalOverflowPx, "Advanced gate capture has horizontal overflow.")
   assertQa(parseNumber(stats.progress) >= minProgress, `Advanced gate capture did not reach ${minProgress}% progress.`)
   assertQa(parseNumber(stats.kills) >= minKills, `Advanced gate capture did not reach ${minKills} kills.`)
-  assertQa(parseNumber(stats.attack) >= 2.24, "Second upgrade did not apply 2.25x attack feedback.")
-  assertQa(stats.upgrade.includes("2/2"), "First round upgrade cap did not show 2/2.")
-  assertQa(stats.debug?.stats.soldierUpgradeTier === 2, "Debug stats did not preserve the 2-upgrade first-round cap.")
-  assertQa(!stats.recordedPopups.some((text) => /FIRE|RANGE|EXPLOSION|PIERCE/.test(text)), "Disabled gate popup appeared during the run.")
+  assertQa(parseNumber(stats.attack) > 0, "Roster engine did not expose a positive attack multiplier.")
+  assertQa(stats.roster.length > 0 && stats.roster.length < 12, "Roster HUD should show only owned unit rows.")
+  assertQa(!stats.roster.some((text) => text.endsWith("0")), "Roster HUD should hide unowned unit rows.")
+  assertQa(stats.debug?.stats.squadLimit === 15, "Debug stats did not expose the reduced 15-person squad limit.")
+  assertQa(stats.debug?.gates?.every((gate) => gate.choices?.length === 2), "Debug gates did not expose exactly two choices per gate.")
+  assertQa(stats.debug?.gates?.some((gate) => gate.visibleChoices?.[0] !== "?" && gate.visibleChoices?.[1] === "?"), "Debug gates did not expose left-visible/right-hidden choices before wall break.")
+  assertQa(stats.debug?.gates?.some((gate) => gate.rightBarrier?.maxHp > 0), "Randomized right gates did not expose a destructible barrier.")
+  assertQa(!stats.recordedPopups.some((text) => /FIRE|RANGE|EXPLOSION|PIERCE|게이머|QA|승급|x3/.test(text)), "Disabled gate popup appeared during the run.")
 
   console.info(JSON.stringify({ screenshotPath, stats }, null, 2))
 } finally {

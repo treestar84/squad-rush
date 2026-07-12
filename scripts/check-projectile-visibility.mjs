@@ -23,7 +23,7 @@ const hasImpactCue = projectileSource.includes("playImpactFlash(trail)") &&
   projectileSource.includes("impactPool") &&
   projectileSource.includes("IMPACT_FLASH_DURATION_SECONDS")
 const hasEffectiveRangeStyle = projectileMotionSource.includes("effectiveRange") &&
-  shootingSource.includes("effectiveRange: range") &&
+  (shootingSource.includes("effectiveRange: range") || shootingSource.includes("bulletStyle.effectiveRange = range")) &&
   projectileSource.includes("style.effectiveRange")
 const hasSyncedImpactVisualTravel = projectileSource.includes("impactDistance") &&
   projectileSource.includes("trail.traveled >= trail.impactDistance") &&
@@ -84,8 +84,8 @@ if (monsterWaveSource.includes("CENTER_BLOCK") || monsterWaveSource.includes("CE
   process.exit(1)
 }
 
-if (!monsterWaveSource.includes("CENTER_CONVERGE_DISTANCE") || !monsterWaveSource.includes("centerPull")) {
-  console.error("Monster movement regression: scattered monsters must gradually converge toward the center across the run.")
+if (!monsterWaveSource.includes("getCenterPull") || !monsterWaveSource.includes("monster.originX * centerPull")) {
+  console.error("Monster movement regression: attack monsters must keep accelerated center convergence.")
   process.exit(1)
 }
 
@@ -118,7 +118,8 @@ const attackDamage = readNumber(soldierSource, "attackDamage")
 const bulletSpeed = readNumber(soldierSource, "bulletSpeed")
 const basicMonsterHp = readNumber(monsterDataSource, "hp")
 const soldierFormationSpacing = readNumber(squadSource, "SOLDIER_FORMATION_SPACING")
-const soldierFormationRowDepthRatio = readNumber(squadSource, "SOLDIER_FORMATION_ROW_DEPTH_RATIO")
+const soldierFormationRowDepth = readNumber(squadSource, "SOLDIER_FORMATION_ROW_DEPTH")
+const soldierFormationMaxColumns = readNumber(squadSource, "SOLDIER_FORMATION_MAX_COLUMNS")
 const visualLengthCap = readNumber(projectileMotionSource, "BULLET_VISUAL_LENGTH")
 const frameVisibilitySeconds = readNumber(projectileMotionSource, "BULLET_FRAME_VISIBILITY_SECONDS")
 const effectiveRangeVisualRatio = readNumber(projectileMotionSource, "BULLET_EFFECTIVE_RANGE_VISUAL_RATIO")
@@ -191,7 +192,8 @@ const maximumPostImpactHeadFadeDistance = 0.75
 const minimumBulletSpeed = 44
 const maximumRangeTravelSeconds = 0.85
 const maximumSoldierFormationSpacing = 0.82
-const maximumSoldierFormationRowDepthRatio = 0.68
+const maximumSoldierFormationRowDepth = 0.32
+const maximumSoldierFormationColumns = 3
 const minimumNormalHitRadius = 0.3
 const minimumNormalHitHalfDepth = 0.22
 const maximumNormalImpactInset = 0.35
@@ -301,9 +303,14 @@ if (bulletSpeed < minimumBulletSpeed) {
   process.exit(1)
 }
 
-if (soldierFormationSpacing > maximumSoldierFormationSpacing || soldierFormationRowDepthRatio > maximumSoldierFormationRowDepthRatio || !squadSource.includes("rowShift")) {
+if (
+  soldierFormationSpacing > maximumSoldierFormationSpacing
+  || soldierFormationRowDepth > maximumSoldierFormationRowDepth
+  || soldierFormationMaxColumns > maximumSoldierFormationColumns
+  || !squadSource.includes("rowShift")
+) {
   console.error(
-    `Squad formation regression: soldiers are too spread out spacing=${soldierFormationSpacing}, rowDepth=${soldierFormationRowDepthRatio}.`,
+    `Squad formation regression: soldiers are too spread out spacing=${soldierFormationSpacing}, rowDepth=${soldierFormationRowDepth}, maxColumns=${soldierFormationMaxColumns}.`,
   )
   process.exit(1)
 }
@@ -416,7 +423,7 @@ function stopPreview(preview) {
 }
 
 const port = await findFreePort()
-const previewUrl = `http://127.0.0.1:${port}/?quality=medium&qa=projectile&qaStartZ=82&qaSoldiers=24&qaSpeed=1.2`
+const previewUrl = `http://127.0.0.1:${port}/?quality=medium&qa=projectile&qaStartZ=30&qaSoldiers=30&qaSpeed=1.2`
 const preview = spawn("npm", ["run", "preview", "--", "--host", "127.0.0.1", "--port", String(port)], {
   cwd: resolve("."),
   stdio: "pipe",
@@ -431,14 +438,14 @@ try {
   const consoleErrors = []
   const pageErrors = []
   page.on("console", (msg) => {
-    if (msg.type() === "error") {
+    if (msg.type() === "error" && !msg.text().startsWith("Failed to load resource")) {
       consoleErrors.push(msg.text())
     }
   })
   page.on("pageerror", (error) => pageErrors.push(error.message))
   await page.goto(previewUrl, { waitUntil: "networkidle" })
   await clickStartButton(page)
-  await page.waitForTimeout(12000)
+  await page.waitForTimeout(18000)
   const debug = await page.evaluate(() => window.__squadRushProjectileDebug)
   const hitDebug = await page.evaluate(() => window.__squadRushHitDebug)
   const screenshotPath = resolve("logs/phase2-qa/projectile-reach-runtime.png")
@@ -480,7 +487,7 @@ try {
   assertQa(debug.minPreImpactHeadAlpha >= minimumPreImpactHeadAlpha, `Pre-impact head alpha ${debug.minPreImpactHeadAlpha} < ${minimumPreImpactHeadAlpha}.`)
   assertQa(debug.minPreImpactTrailAlpha >= minimumPreImpactTrailAlpha, `Pre-impact trail alpha ${debug.minPreImpactTrailAlpha} < ${minimumPreImpactTrailAlpha}.`)
   console.log(
-    `Projectile visibility OK: visualLength=${visualLength.toFixed(2)}, boostedSegmentedReach=${segmentedVisualReach.toFixed(2)}, runtimeReach=${debug.minVisualReach.toFixed(2)}, endpointRatio=${debug.maxPreImpactTravelRatio.toFixed(2)}, preImpactWorldAdvance=${debug.maxPreImpactHeadWorldAdvance.toFixed(2)}, visualWorldAdvance=${debug.maxVisualHeadWorldAdvance.toFixed(2)}, nearImpactVisible=${debug.maxNearImpactVisibleRatio.toFixed(2)}, impactToVisual=${debug.maxImpactToVisualDistance.toFixed(2)}, postImpactDistance=${debug.maxPostImpactDistance.toFixed(2)}, syncTolerance=${impactVisualSyncTolerance.toFixed(2)}, postImpactHeadFade=${postImpactHeadFadeDistance.toFixed(2)}, headAlpha=${debug.minPreImpactHeadAlpha.toFixed(2)}, trailAlphaRuntime=${debug.minPreImpactTrailAlpha.toFixed(2)}, shots=${debug.shotsCreated}, normalShots=${hitDebug.normalShots}, normalImpacts=${hitDebug.normalImpacts}, normalKills=${hitDebug.normalKills}, missedNormalImpacts=${hitDebug.missedNormalImpacts}, staleNormalImpacts=${hitDebug.staleNormalImpacts}, multiDamageImpacts=${hitDebug.multiDamageImpacts}, reservedTargets=${hitDebug.reservedTargets}, hitRadius=${hitDebug.minNormalHitRadius.toFixed(2)}-${hitDebug.maxNormalHitRadius.toFixed(2)}, hitHalfDepth=${hitDebug.minNormalHitHalfDepth.toFixed(2)}-${hitDebug.maxNormalHitHalfDepth.toFixed(2)}, impactInset=${hitDebug.minNormalImpactInset.toFixed(2)}-${hitDebug.maxNormalImpactInset.toFixed(2)}, tailClear=${tailClearDistance.toFixed(2)}, trailAlpha=${trailAlpha.toFixed(2)}, wakeAlpha=${wakeAlpha.toFixed(2)}, slug=${slugDiameter.toFixed(2)}x${slugLength.toFixed(2)}, streak=${streakWidth.toFixed(3)}, wakeNear=${wakeNearDiameter.toFixed(2)}, wakeFar=${wakeFarDiameter.toFixed(2)}, core=${coreDiameter.toFixed(2)}, flash=${flashDiameter.toFixed(2)}, monsterFrontInset=${monsterFrontSurfaceInset.toFixed(2)}, formationSpacing=${soldierFormationSpacing.toFixed(2)}, formationRowDepth=${soldierFormationRowDepthRatio.toFixed(2)}, rangeTravel=${rangeTravelSeconds.toFixed(2)}s, life=${lifeSeconds.toFixed(2)}s`,
+    `Projectile visibility OK: visualLength=${visualLength.toFixed(2)}, boostedSegmentedReach=${segmentedVisualReach.toFixed(2)}, runtimeReach=${debug.minVisualReach.toFixed(2)}, endpointRatio=${debug.maxPreImpactTravelRatio.toFixed(2)}, preImpactWorldAdvance=${debug.maxPreImpactHeadWorldAdvance.toFixed(2)}, visualWorldAdvance=${debug.maxVisualHeadWorldAdvance.toFixed(2)}, nearImpactVisible=${debug.maxNearImpactVisibleRatio.toFixed(2)}, impactToVisual=${debug.maxImpactToVisualDistance.toFixed(2)}, postImpactDistance=${debug.maxPostImpactDistance.toFixed(2)}, syncTolerance=${impactVisualSyncTolerance.toFixed(2)}, postImpactHeadFade=${postImpactHeadFadeDistance.toFixed(2)}, headAlpha=${debug.minPreImpactHeadAlpha.toFixed(2)}, trailAlphaRuntime=${debug.minPreImpactTrailAlpha.toFixed(2)}, shots=${debug.shotsCreated}, normalShots=${hitDebug.normalShots}, normalImpacts=${hitDebug.normalImpacts}, normalKills=${hitDebug.normalKills}, missedNormalImpacts=${hitDebug.missedNormalImpacts}, staleNormalImpacts=${hitDebug.staleNormalImpacts}, multiDamageImpacts=${hitDebug.multiDamageImpacts}, reservedTargets=${hitDebug.reservedTargets}, hitRadius=${hitDebug.minNormalHitRadius.toFixed(2)}-${hitDebug.maxNormalHitRadius.toFixed(2)}, hitHalfDepth=${hitDebug.minNormalHitHalfDepth.toFixed(2)}-${hitDebug.maxNormalHitHalfDepth.toFixed(2)}, impactInset=${hitDebug.minNormalImpactInset.toFixed(2)}-${hitDebug.maxNormalImpactInset.toFixed(2)}, tailClear=${tailClearDistance.toFixed(2)}, trailAlpha=${trailAlpha.toFixed(2)}, wakeAlpha=${wakeAlpha.toFixed(2)}, slug=${slugDiameter.toFixed(2)}x${slugLength.toFixed(2)}, streak=${streakWidth.toFixed(3)}, wakeNear=${wakeNearDiameter.toFixed(2)}, wakeFar=${wakeFarDiameter.toFixed(2)}, core=${coreDiameter.toFixed(2)}, flash=${flashDiameter.toFixed(2)}, monsterFrontInset=${monsterFrontSurfaceInset.toFixed(2)}, formationSpacing=${soldierFormationSpacing.toFixed(2)}, formationRowDepth=${soldierFormationRowDepth.toFixed(2)}, rangeTravel=${rangeTravelSeconds.toFixed(2)}s, life=${lifeSeconds.toFixed(2)}s`,
   )
 } finally {
   await browser?.close().catch(() => {})

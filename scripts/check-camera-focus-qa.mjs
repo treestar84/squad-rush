@@ -23,6 +23,7 @@ function readNumber(source, name) {
 }
 
 const gateDistance = readNumber(gateSource, "GATE_CAMERA_FOCUS_DISTANCE")
+const closeReleaseDistance = readNumber(gateSource, "GATE_CAMERA_CLOSE_RELEASE_DISTANCE")
 const heightDrop = readNumber(cameraSource, "GATE_FOCUS_HEIGHT_DROP")
 const backPull = readNumber(cameraSource, "GATE_FOCUS_BACK_PULL")
 const lookahead = readNumber(cameraSource, "GATE_FOCUS_LOOKAHEAD")
@@ -32,9 +33,11 @@ const combatBackPull = readNumber(cameraSource, "COMBAT_FOCUS_BACK_PULL")
 
 assertQa(gateSource.includes("getApproachFocus"), "GateSystem must expose gate approach focus.")
 assertQa(gateSource.includes("Math.sin((1 - distance / GATE_CAMERA_FOCUS_DISTANCE) * Math.PI)"), "Gate focus must ease in and out around the gate.")
+assertQa(gateSource.includes("approachFocus * closeRelease"), "Gate focus must release near the crossing line so the squad stays framed.")
 assertQa(cameraSource.includes("export type CameraFollowTarget"), "Camera follow inputs must be a typed focus object.")
+assertQa(cameraSource.includes("__squadRushCameraDebug"), "Camera QA must expose projected squad framing state.")
 assertQa(cameraSource.includes("gateFocus") && cameraSource.includes("combatFocus") && cameraSource.includes("bossFocus"), "Camera follow input must keep bossFocus typed for compatibility.")
-assertQa(cameraSource.includes("targetFov"), "Camera must animate FOV during focus moments.")
+assertQa(cameraSource.includes("targetFov"), "Camera must keep an explicit target FOV.")
 assertQa(gameSource.includes("this.gates.getApproachFocus(this.squad.squadZ)"), "Game must feed gate approach focus into the camera.")
 assertQa(gameSource.includes("this.waves.aliveCount() / 220"), "Game must feed combat density into the camera.")
 assertQa(gameSource.includes("bossFocus: 0"), "Game must preserve the opening camera angle during boss encounters.")
@@ -43,13 +46,14 @@ assertQa(designSource.includes("preserve the opening chase camera angle"), "DESI
 assertQa(designSource.includes("Camera focus QA"), "DESIGN.md must document camera focus QA.")
 
 assertQa(gateDistance >= 8 && gateDistance <= 14, `gate focus distance ${gateDistance} must stay in the 8-14m ad-game choice window.`)
-assertQa(heightDrop >= 0.35 && heightDrop <= 0.7, `height drop ${heightDrop} must be subtle but visible.`)
-assertQa(backPull >= 0.8 && backPull <= 1.4, `back pull ${backPull} must zoom without losing lane context.`)
-assertQa(lookahead >= 1.1 && lookahead <= 2.1, `lookahead ${lookahead} must pull attention toward the choice frame.`)
-assertQa(fovReduction >= 0.035 && fovReduction <= 0.06, `FOV reduction ${fovReduction} must be visible but not disorienting.`)
+assertQa(closeReleaseDistance >= 6 && closeReleaseDistance <= 8, `close release distance ${closeReleaseDistance} must fade focus before the squad crosses a gate.`)
+assertQa(heightDrop === 0, `gate focus must not change camera height: ${heightDrop}`)
+assertQa(backPull === 0, `gate focus must not pull the camera forward: ${backPull}`)
+assertQa(lookahead === 0, `gate focus must not push the target lookahead: ${lookahead}`)
+assertQa(fovReduction === 0, `gate focus must not reduce FOV or create zoom: ${fovReduction}`)
 assertQa(combatLookahead >= 0.6 && combatLookahead <= 1.2, `combat lookahead ${combatLookahead} must keep the horde framed.`)
 assertQa(combatBackPull >= 0.25 && combatBackPull <= 0.7, `combat back pull ${combatBackPull} must be restrained.`)
 
 console.log(
-  `Camera focus QA OK: gateDistance=${gateDistance}, heightDrop=${heightDrop}, backPull=${backPull}, lookahead=${lookahead}, fovReduction=${fovReduction}, combatLookahead=${combatLookahead}, combatBackPull=${combatBackPull}, bossCamera=opening-angle`,
+  `Camera focus QA OK: gateDistance=${gateDistance}, closeReleaseDistance=${closeReleaseDistance}, heightDrop=${heightDrop}, backPull=${backPull}, lookahead=${lookahead}, fovReduction=${fovReduction}, combatLookahead=${combatLookahead}, combatBackPull=${combatBackPull}, bossCamera=opening-angle`,
 )

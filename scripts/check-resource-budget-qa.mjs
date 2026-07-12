@@ -6,6 +6,10 @@ const maxSingleAssetBytes = 3 * 1024 * 1024
 const maxLooseRasterBytes = 64 * 1024
 
 const assetRoot = "public/assets"
+const optionalDesktopAssetPrefix = "public/assets/models/environment/attack_buildings/"
+const optionalDefenseAssetPrefix = "public/assets/models/environment/defense/"
+const optionalDesktopBudgetBytes = 8 * 1024 * 1024
+const optionalDefenseBudgetBytes = 3 * 1024 * 1024
 const gltfPolicies = [
   {
     path: "public/assets/models/soldier.gltf",
@@ -106,15 +110,31 @@ const fileStats = await Promise.all(
   }),
 )
 
-const totalBytes = fileStats.reduce((sum, file) => sum + file.bytes, 0)
-const largest = [...fileStats].sort((a, b) => b.bytes - a.bytes)[0]
-const looseRasterFiles = fileStats.filter((file) => isRasterAsset(file.path))
+const optionalDesktopFiles = fileStats.filter((file) => file.path.startsWith(optionalDesktopAssetPrefix))
+const optionalDefenseFiles = fileStats.filter((file) => file.path.startsWith(optionalDefenseAssetPrefix))
+const commonRuntimeFiles = fileStats.filter((file) => {
+  return !file.path.startsWith(optionalDesktopAssetPrefix)
+    && !file.path.startsWith(optionalDefenseAssetPrefix)
+})
+const totalBytes = commonRuntimeFiles.reduce((sum, file) => sum + file.bytes, 0)
+const optionalDesktopBytes = optionalDesktopFiles.reduce((sum, file) => sum + file.bytes, 0)
+const optionalDefenseBytes = optionalDefenseFiles.reduce((sum, file) => sum + file.bytes, 0)
+const largest = [...commonRuntimeFiles].sort((a, b) => b.bytes - a.bytes)[0]
+const looseRasterFiles = commonRuntimeFiles.filter((file) => isRasterAsset(file.path))
 const oversizedLooseRasterFiles = looseRasterFiles.filter((file) => file.bytes > maxLooseRasterBytes)
-const forbiddenSourceFiles = fileStats.filter((file) => isForbiddenSourceAsset(file.path))
+const forbiddenSourceFiles = commonRuntimeFiles.filter((file) => isForbiddenSourceAsset(file.path))
 
 assertQa(totalBytes <= runtimeBudgetBytes, `runtime assets exceed 8MB budget (${totalBytes} > ${runtimeBudgetBytes}).`)
 assertQa(largest !== undefined, "public/assets has no runtime assets.")
 assertQa(largest.bytes <= maxSingleAssetBytes, `${largest.path} exceeds 3MB single-file budget.`)
+assertQa(optionalDesktopBytes <= optionalDesktopBudgetBytes, `optional desktop assets exceed 8MB budget (${optionalDesktopBytes} > ${optionalDesktopBudgetBytes}).`)
+assertQa(optionalDefenseBytes <= optionalDefenseBudgetBytes, `optional defense assets exceed 3MB budget (${optionalDefenseBytes} > ${optionalDefenseBudgetBytes}).`)
+for (const file of optionalDesktopFiles) {
+  assertQa(file.bytes <= maxSingleAssetBytes, `${file.path} exceeds 3MB single-file budget.`)
+}
+for (const file of optionalDefenseFiles) {
+  assertQa(file.bytes <= maxSingleAssetBytes, `${file.path} exceeds 3MB single-file budget.`)
+}
 assertQa(oversizedLooseRasterFiles.length === 0, `loose raster textures exceed 64KB: ${oversizedLooseRasterFiles.map((file) => file.path).join(", ")}`)
 assertQa(forbiddenSourceFiles.length === 0, `source-format assets are not runtime-ready: ${forbiddenSourceFiles.map((file) => file.path).join(", ")}`)
 
@@ -139,6 +159,10 @@ console.info(
     {
       runtimeBudgetBytes,
       totalBytes,
+      optionalDesktopBytes,
+      optionalDesktopFiles,
+      optionalDefenseBytes,
+      optionalDefenseFiles,
       largest,
       looseRasterFiles,
       gltfSummaries,

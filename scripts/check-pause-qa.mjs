@@ -107,7 +107,11 @@ async function readPauseStats(page) {
 assertQa(pauseSource.includes("data-role=\"pause\""), "Pause control must expose a HUD pause button.")
 assertQa(pauseSource.includes("data-role=\"pause-panel\""), "Pause control must expose a paused overlay.")
 assertQa(gamePauseSource.includes("this.control.setPaused(paused)"), "GamePause must drive PauseControl state.")
-assertQa(gameSource.includes("if (this.pause.paused)"), "Game loop must stop gameplay while paused.")
+assertQa(
+  gameSource.includes("if (this.pause.paused)")
+    || (gameSource.includes("isWorldAdvancing()") && gameSource.includes("!this.pause.paused")),
+  "Game loop must stop gameplay while paused.",
+)
 assertQa(designSource.includes("Pause control QA"), "DESIGN.md must document pause control QA.")
 
 const port = await findFreePort()
